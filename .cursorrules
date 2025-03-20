@@ -1,0 +1,112 @@
+# fetchr.sh Implementation Rules
+
+## File Structure
+- Keep related code together in appropriate packages
+- Follow Go project layout conventions
+- Maintain clear separation of concerns
+
+## Code Style
+- Follow Go standard formatting (gofmt)
+- Use clear and descriptive variable names
+- Add comments for complex logic
+- Include examples in comments
+- Follow Go best practices and idioms
+
+## Testing
+- Write unit tests for all new code
+- Include integration tests for features
+- Add performance tests for critical paths
+- Test all examples
+- Maintain high test coverage
+
+## Documentation
+- Update README.md with new features
+- Keep INTERFACES.md current with CLI changes
+- Update ROADMAP.md as features are completed
+- Add inline documentation for complex code
+- Include examples for new features
+
+## Version Control
+- Use conventional commits
+- Create feature branches from main
+- Include all documentation updates in PRs
+- Add test coverage reports
+- Update version numbers appropriately
+
+## Feature Implementation
+1. Create feature branch
+2. Write tests first
+3. Implement feature
+4. Add documentation
+5. Create PR with all changes
+6. Update roadmap after merge
+
+## Breaking Changes
+- Add migration guides
+- Update all examples
+- Mark deprecated features
+- Maintain backward compatibility
+- Increment major version
+
+## Dependencies
+- Use Go modules
+- Pin dependency versions
+- Document dependency requirements
+- Regular security updates
+- Minimal external dependencies
+
+## Performance
+- Profile critical paths
+- Optimize resource usage
+- Monitor memory usage
+- Consider concurrent operations
+- Document performance considerations
+
+## Security
+- Follow security best practices
+- Regular security audits
+- Input validation
+- Secure configuration
+- Proper error handling
+
+## Error Handling
+- Use meaningful error messages
+- Include error context
+- Proper error propagation
+- Log errors appropriately
+- Handle edge cases
+
+## Logging
+- Use structured logging
+- Include relevant context
+- Appropriate log levels
+- Log rotation
+- Performance impact consideration
+
+## Configuration
+- Use environment variables
+- Support configuration files
+- Validate configuration
+- Default values
+- Configuration hot-reload
+
+## API Design
+- Follow REST principles
+- Version APIs appropriately
+- Document endpoints
+- Include examples
+- Consider backward compatibility
+
+## Monitoring
+- Add metrics endpoints
+- Include health checks
+- Performance monitoring
+- Resource usage tracking
+- Alert thresholds
+
+## Deployment
+- Container support
+- Cloud provider integration
+- Deployment guides
+- Configuration management
+- Scaling considerations 
