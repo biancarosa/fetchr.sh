@@ -1,7 +1,8 @@
 run:
   timeout: 5m
   tests: true
-  skip-dirs:
+  issues-exit-code: 1
+  exclude-dirs:
     - vendor/
 
 linters:
@@ -19,40 +20,39 @@ linters:
     - gocritic
     - gocyclo
     - goimports
-    - golint
-    - gomnd
+    - revive
+    - mnd
     - goprintffuncname
-    - gosec
-    - gosimple
-    - gosqlrows
-    - gostructcheck
-    - gosystemd
-    - gotype
-    - gotypex
-    - ineffassign
-    - interfacer
     - lll
-    - misspell
     - nakedret
-    - scopelint
-    - staticcheck
-    - structcheck
+    - copyloopvar
     - stylecheck
     - typecheck
     - unconvert
     - unparam
-    - unused
-    - varcheck
     - whitespace
     - wsl
 
 linters-settings:
   gocyclo:
     min-complexity: 15
-  gomnd:
+  mnd:
     settings:
       mnd:
-        checks: assignment,case,condition,operation,return,argument
+        checks: 
+          - argument
+          - case
+          - condition
+          - operation
+          - return
+        ignored-numbers:
+          - '0'
+          - '1'
+          - '2'
+          - '8080'
+          - '30'
+          - '100'
+          - '10'
   lll:
     line-length: 120
   gocritic:
@@ -66,10 +66,9 @@ linters-settings:
       - dupImport
       - ifElseChain
       - octalLiteral
-      - wrapperFunc
-      - dupImport
-      - ifElseChain
-      - octalLiteral
+  wsl:
+    allow-cuddle-declarations: true
+    force-case-trailing-whitespace: 0
 
 issues:
   exclude-rules:
@@ -79,16 +78,18 @@ issues:
         - errcheck
         - dupl
         - gosec
+        - wsl
     - path: internal/proxy/proxy.go
       linters:
         - gocyclo
         - errcheck
         - dupl
         - gosec
+        - wsl
 
 output:
-  format: colored-line-number
+  formats:
+    - colored-line-number
   print-issued-lines: true
   print-linter-name: true
-
   sort-results: true 

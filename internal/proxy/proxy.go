@@ -36,20 +36,19 @@ func New(config *Config) *Proxy {
 
 // Start starts the proxy server
 func (p *Proxy) Start() error {
-	p.server = &http.Server{
-		Addr:    fmt.Sprintf(":%d", p.config.Port),
-		Handler: http.HandlerFunc(p.handleRequest),
+	if p.server == nil {
+		return fmt.Errorf("server not initialized")
 	}
 
-	log.Printf("Starting proxy server on port %d", p.config.Port)
 	return p.server.ListenAndServe()
 }
 
 // Stop stops the proxy server
 func (p *Proxy) Stop() error {
-	if p.server != nil {
-		return p.server.Close()
+	if p.server == nil {
+		return fmt.Errorf("server not initialized")
 	}
+
 	return nil
 }
 

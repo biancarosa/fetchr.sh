@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"sort"
 	"syscall"
 	"time"
 
@@ -69,15 +70,27 @@ func runRequest() error {
 
 	// Print response
 	fmt.Printf("Status: %d\n", resp.StatusCode)
+
+	if err := proxyServer.Stop(); err != nil {
+		fmt.Printf("Error stopping proxy server: %v\n", err)
+	}
+
 	fmt.Println("\nHeaders:")
-	for key, values := range resp.Headers {
+	var keys []string
+	for key := range resp.Headers {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+
+	for _, key := range keys {
+		values := resp.Headers[key]
 		for _, value := range values {
 			fmt.Printf("%s: %s\n", key, value)
 		}
 	}
+
 	fmt.Println("\nBody:")
 	fmt.Println(string(resp.Body))
 
-	// Stop the proxy server
-	return proxyServer.Stop()
+	return nil
 }

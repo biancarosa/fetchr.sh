@@ -9,10 +9,10 @@ import (
 
 func TestProxy(t *testing.T) {
 	// Create a test server that will act as the target for our proxy
-	targetServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("X-Test-Header", "test-value")
+	targetServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("X-Response-Header", "response-value")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("Hello from target server"))
+		w.Write([]byte("Hello, World!"))
 	}))
 	defer targetServer.Close()
 
@@ -28,13 +28,14 @@ func TestProxy(t *testing.T) {
 	defer proxyServer.Close()
 
 	// Make a request through the proxy to the target
-	req, err := http.NewRequest("GET", targetServer.URL, nil)
+	req, err := http.NewRequest("GET", targetServer.URL, http.NoBody)
 	if err != nil {
-		t.Fatalf("Failed to create request: %v", err)
+		t.Fatal(err)
 	}
 	req.Header.Set("X-Custom-Header", "custom-value")
+	client := &http.Client{}
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := client.Do(req)
 	if err != nil {
 		t.Fatalf("Failed to make request: %v", err)
 	}
@@ -46,8 +47,8 @@ func TestProxy(t *testing.T) {
 	}
 
 	// Check response headers
-	if resp.Header.Get("X-Test-Header") != "test-value" {
-		t.Error("Expected X-Test-Header to be forwarded")
+	if resp.Header.Get("X-Response-Header") != "response-value" {
+		t.Error("Expected X-Response-Header to be forwarded")
 	}
 
 	// Check response body
@@ -56,8 +57,8 @@ func TestProxy(t *testing.T) {
 		t.Fatalf("Failed to read response body: %v", err)
 	}
 
-	expectedBody := "Hello from target server"
+	expectedBody := "Hello, World!"
 	if string(body) != expectedBody {
 		t.Errorf("Expected body %q, got %q", expectedBody, string(body))
 	}
-} 
+}
