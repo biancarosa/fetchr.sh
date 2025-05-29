@@ -56,7 +56,13 @@ func MakeRequest(proxyURL string, config RequestConfig) (*Response, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error making request: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			// Log the error but don't fail the request
+			// since we might have already read the body successfully
+			fmt.Printf("Warning: error closing response body: %v\n", closeErr)
+		}
+	}()
 
 	// Read response body
 	body, err := io.ReadAll(resp.Body)

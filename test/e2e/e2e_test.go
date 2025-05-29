@@ -1,16 +1,17 @@
-//go:build e2e
-
 package e2e
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
+	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -18,72 +19,469 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestE2E(t *testing.T) {
-	t.Log("E2E test")
+const (
+	proxyPort       = 9999
+	proxyAddr       = "http://localhost:9999"
+	testServerPort  = 8888
+	testServerAddr  = "http://localhost:8888"
+	timeoutDuration = 10 * time.Second
+)
+
+type testServer struct {
+	server *http.Server
 }
 
-func TestProxyGoogleRequest(t *testing.T) {
-	// Start the proxy server in the background
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+// setupTestServer creates a test HTTP server that simulates a backend service
+func setupTestServer(t *testing.T) *testServer {
+	mux := http.NewServeMux()
 
-	// Use a random available port
-	port := getAvailablePort(t)
+	// Basic endpoint that returns a simple response
+	mux.HandleFunc("/hello", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("X-Test-Header", "test-value")
+		w.WriteHeader(http.StatusOK)
+		if _, err := w.Write([]byte(`{"message":"Hello, World!"}`)); err != nil {
+			t.Logf("Error writing response: %v", err)
+		}
+	})
 
-	// Get the absolute path to the fetchr binary in the project root
-	binPath, err := filepath.Abs("../../fetchr")
-	require.NoError(t, err, "Failed to get absolute path to fetchr binary")
+	// Echo endpoint that returns request details
+	mux.HandleFunc("/echo", func(w http.ResponseWriter, r *http.Request) {
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			http.Error(w, "Error reading body", http.StatusInternalServerError)
+			return
+		}
+		if closeErr := r.Body.Close(); closeErr != nil {
+			t.Logf("Error closing request body: %v", closeErr)
+		}
 
-	// Ensure the binary is executable
-	err = os.Chmod(binPath, 0755)
-	require.NoError(t, err, "Failed to make binary executable")
+		response := map[string]interface{}{
+			"method":  r.Method,
+			"path":    r.URL.Path,
+			"headers": r.Header,
+			"body":    string(body),
+		}
 
-	// Start proxy server with the absolute path
-	cmd := exec.CommandContext(ctx, binPath, "serve", "--port", port)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		if encErr := json.NewEncoder(w).Encode(response); encErr != nil {
+			t.Logf("Error encoding response: %v", encErr)
+		}
+	})
 
-	err = cmd.Start()
-	require.NoError(t, err, "Failed to start proxy server")
+	// Delayed response endpoint for testing timeouts
+	mux.HandleFunc("/delay", func(w http.ResponseWriter, r *http.Request) {
+		delay := r.URL.Query().Get("time")
+		if delay == "" {
+			delay = "2"
+		}
 
-	// Ensure the server has time to start
-	time.Sleep(2 * time.Second)
+		duration, err := time.ParseDuration(delay + "s")
+		if err != nil {
+			http.Error(w, "Invalid delay parameter", http.StatusBadRequest)
+			return
+		}
 
-	// Create an HTTP client that uses the proxy
-	proxyURL, err := url.Parse("http://localhost:" + port)
-	require.NoError(t, err)
+		time.Sleep(duration)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		if _, err := w.Write([]byte(`{"message":"Delayed response"}`)); err != nil {
+			t.Logf("Error writing delayed response: %v", err)
+		}
+	})
 
-	client := &http.Client{
-		Transport: &http.Transport{
-			Proxy: http.ProxyURL(proxyURL),
-		},
-		Timeout: 10 * time.Second,
+	// Error endpoint
+	mux.HandleFunc("/error", func(w http.ResponseWriter, r *http.Request) {
+		statusCode := http.StatusInternalServerError
+		statusParam := r.URL.Query().Get("status")
+		if statusParam != "" {
+			if _, scanErr := fmt.Sscanf(statusParam, "%d", &statusCode); scanErr != nil {
+				t.Logf("Error parsing status code: %v", scanErr)
+			}
+		}
+		w.WriteHeader(statusCode)
+		if _, err := w.Write([]byte(`{"error":"Test error response"}`)); err != nil {
+			t.Logf("Error writing error response: %v", err)
+		}
+	})
+
+	srv := &http.Server{
+		Addr:    fmt.Sprintf(":%d", testServerPort),
+		Handler: mux,
 	}
 
-	// Make a request to Google through the proxy
-	resp, err := client.Get("https://www.google.com")
-	require.NoError(t, err, "Failed to make request through proxy")
-	defer resp.Body.Close()
+	go func() {
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			t.Logf("Test server error: %v", err)
+		}
+	}()
 
-	// Verify the response status code
-	assert.Equal(t, http.StatusOK, resp.StatusCode, "Expected 200 OK response from Google")
+	// Make sure the server is running
+	for i := 0; i < 10; i++ {
+		_, err := http.Get(fmt.Sprintf("%s/hello", testServerAddr))
+		if err == nil {
+			break
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
 
-	// Read and verify the response body contains expected Google content
-	body, err := io.ReadAll(resp.Body)
-	require.NoError(t, err, "Failed to read response body")
-
-	assert.Contains(t, string(body), "<title", "Response should contain HTML title tag")
-	assert.Contains(t, string(body), "Google", "Response should contain Google branding")
+	return &testServer{server: srv}
 }
 
-// getAvailablePort returns a random available port as a string
-func getAvailablePort(t *testing.T) string {
-	listener, err := net.Listen("tcp", ":0")
-	require.NoError(t, err, "Failed to find available port")
-	defer listener.Close()
+func (ts *testServer) shutdown(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := ts.server.Shutdown(ctx); err != nil {
+		t.Logf("Test server shutdown error: %v", err)
+	}
+}
 
-	_, port, err := net.SplitHostPort(listener.Addr().String())
-	require.NoError(t, err, "Failed to extract port number")
+// fetchrCmd represents a running fetchr process
+type fetchrCmd struct {
+	cmd    *exec.Cmd
+	stdout *bytes.Buffer
+	stderr *bytes.Buffer
+}
 
-	return port
+// startProxyServer starts the fetchr proxy server with the given arguments
+func startProxyServer(t *testing.T, args ...string) *fetchrCmd {
+	// Build binary path - we assume the binary is in the root directory
+	binaryPath := filepath.Join("..", "..", "fetchr")
+
+	// Check if binary exists
+	if _, err := os.Stat(binaryPath); os.IsNotExist(err) {
+		// Try to build it
+		t.Log("Fetchr binary not found, building it")
+		buildCmd := exec.Command("go", "build", "-o", binaryPath, "../../cmd/fetchr")
+		if err := buildCmd.Run(); err != nil {
+			t.Fatalf("Failed to build fetchr binary: %v", err)
+		}
+	}
+
+	// Default arguments for the serve command
+	serveArgs := []string{"serve", fmt.Sprintf("--port=%d", proxyPort), "--log-level=debug"}
+
+	// Merge with custom args
+	args = append(serveArgs, args...)
+
+	cmd := exec.Command(binaryPath, args...)
+	stdout := &bytes.Buffer{}
+	stderr := &bytes.Buffer{}
+	cmd.Stdout = stdout
+	cmd.Stderr = stderr
+
+	if err := cmd.Start(); err != nil {
+		t.Fatalf("Failed to start fetchr: %v", err)
+	}
+
+	// Wait for proxy to start
+	time.Sleep(1 * time.Second)
+
+	return &fetchrCmd{
+		cmd:    cmd,
+		stdout: stdout,
+		stderr: stderr,
+	}
+}
+
+func (f *fetchrCmd) stop(t *testing.T) {
+	if err := f.cmd.Process.Signal(os.Interrupt); err != nil {
+		t.Logf("Failed to send interrupt to fetchr: %v", err)
+		if err := f.cmd.Process.Kill(); err != nil {
+			t.Logf("Failed to kill fetchr: %v", err)
+		}
+	}
+
+	// Collect process output
+	err := f.cmd.Wait()
+	if err != nil && err.Error() != "signal: interrupt" {
+		t.Logf("Fetchr exited with error: %v", err)
+	}
+
+	// Give it a brief moment to flush output
+	time.Sleep(100 * time.Millisecond)
+
+	// We're keeping this small delay to ensure output is properly captured
+	t.Logf("Fetchr stdout: %s", f.stdout.String())
+	t.Logf("Fetchr stderr: %s", f.stderr.String())
+}
+
+// makeRequestThroughProxy makes an HTTP request through the proxy
+func makeRequestThroughProxy(t *testing.T, method, targetURL string, headers map[string]string, body string) (*http.Response, []byte) {
+	client := &http.Client{
+		Timeout: timeoutDuration,
+		Transport: &http.Transport{
+			Proxy: func(_ *http.Request) (*url.URL, error) {
+				return url.Parse(proxyAddr)
+			},
+		},
+	}
+
+	var bodyReader io.Reader
+	if body != "" {
+		bodyReader = strings.NewReader(body)
+	}
+
+	req, err := http.NewRequest(method, targetURL, bodyReader)
+	require.NoError(t, err, "Failed to create request")
+
+	for key, value := range headers {
+		req.Header.Set(key, value)
+	}
+
+	resp, err := client.Do(req)
+	require.NoError(t, err, "Failed to make request through proxy")
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			t.Logf("Error closing response body: %v", closeErr)
+		}
+	}()
+
+	respBody, err := io.ReadAll(resp.Body)
+	require.NoError(t, err, "Failed to read response body")
+
+	return resp, respBody
+}
+
+// TestBasicProxyFunctionality tests the basic HTTP proxy functionality
+func TestBasicProxyFunctionality(t *testing.T) {
+	testSrv := setupTestServer(t)
+	defer testSrv.shutdown(t)
+
+	proxySrv := startProxyServer(t)
+	defer proxySrv.stop(t)
+
+	t.Run("GET request through proxy", func(t *testing.T) {
+		targetURL := fmt.Sprintf("%s/hello", testServerAddr)
+		resp, body := makeRequestThroughProxy(t, "GET", targetURL, nil, "")
+
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+		assert.Equal(t, "test-value", resp.Header.Get("X-Test-Header"))
+		assert.Contains(t, string(body), "Hello, World!")
+	})
+
+	t.Run("POST request with body", func(t *testing.T) {
+		targetURL := fmt.Sprintf("%s/echo", testServerAddr)
+		headers := map[string]string{
+			"Content-Type": "application/json",
+			"X-Custom":     "custom-value",
+		}
+		reqBody := `{"name":"Test User","action":"testing"}`
+
+		resp, body := makeRequestThroughProxy(t, "POST", targetURL, headers, reqBody)
+
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+		var responseData map[string]interface{}
+		err := json.Unmarshal(body, &responseData)
+		require.NoError(t, err, "Failed to parse response JSON")
+
+		assert.Equal(t, "POST", responseData["method"])
+		assert.Equal(t, "/echo", responseData["path"])
+		assert.Contains(t, responseData["body"], "Test User")
+
+		// Handle headers map properly using type assertions at each level
+		headersMap, ok := responseData["headers"].(map[string]interface{})
+		require.True(t, ok, "Headers should be a map")
+
+		// Check for Content-Type header
+		if contentTypeHeaders, ok := headersMap["Content-Type"].([]interface{}); ok && len(contentTypeHeaders) > 0 {
+			if contentTypeStr, ok := contentTypeHeaders[0].(string); ok {
+				assert.Contains(t, contentTypeStr, "application/json")
+			} else {
+				t.Error("Content-Type header value is not a string")
+			}
+		} else {
+			t.Error("Content-Type header not found or not an array")
+		}
+
+		// Check for X-Custom header
+		if customHeaders, ok := headersMap["X-Custom"].([]interface{}); ok && len(customHeaders) > 0 {
+			if customHeaderStr, ok := customHeaders[0].(string); ok {
+				assert.Contains(t, customHeaderStr, "custom-value")
+			} else {
+				t.Error("X-Custom header value is not a string")
+			}
+		} else {
+			t.Error("X-Custom header not found or not an array")
+		}
+	})
+
+	t.Run("Error handling", func(t *testing.T) {
+		targetURL := fmt.Sprintf("%s/error?status=503", testServerAddr)
+		resp, body := makeRequestThroughProxy(t, "GET", targetURL, nil, "")
+
+		assert.Equal(t, http.StatusServiceUnavailable, resp.StatusCode)
+		assert.Contains(t, string(body), "error")
+	})
+
+	t.Run("Different HTTP methods", func(t *testing.T) {
+		methods := []string{"GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"}
+		for _, method := range methods {
+			t.Run(method, func(t *testing.T) {
+				targetURL := fmt.Sprintf("%s/echo", testServerAddr)
+				resp, body := makeRequestThroughProxy(t, method, targetURL, nil, "")
+
+				assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+				var responseData map[string]interface{}
+				err := json.Unmarshal(body, &responseData)
+				require.NoError(t, err, "Failed to parse response JSON")
+
+				assert.Equal(t, method, responseData["method"])
+			})
+		}
+	})
+}
+
+// TestHealthCheckEndpoint tests the health check endpoint
+func TestHealthCheckEndpoint(t *testing.T) {
+	proxySrv := startProxyServer(t, "--health")
+	defer proxySrv.stop(t)
+
+	// Direct request to health endpoint on the proxy (not through proxy)
+	client := &http.Client{
+		Timeout: timeoutDuration,
+		// No proxy configuration
+	}
+	healthURL := fmt.Sprintf("%s/healthz", proxyAddr)
+	resp, err := client.Get(healthURL)
+	require.NoError(t, err, "Failed to make health check request")
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			t.Logf("Error closing health check response body: %v", closeErr)
+		}
+	}()
+
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err, "Failed to read health check response")
+
+	assert.Contains(t, string(body), "status")
+}
+
+// TestMetricsEndpoint tests the metrics endpoint
+func TestMetricsEndpoint(t *testing.T) {
+	proxySrv := startProxyServer(t, "--metrics")
+	defer proxySrv.stop(t)
+
+	// Make a few requests through the proxy to generate metrics
+	testSrv := setupTestServer(t)
+	defer testSrv.shutdown(t)
+
+	// Make a few requests to generate metrics
+	for i := 0; i < 3; i++ {
+		targetURL := fmt.Sprintf("%s/hello", testServerAddr)
+		makeRequestThroughProxy(t, "GET", targetURL, nil, "")
+	}
+
+	// Direct request to metrics endpoint on the proxy (not through proxy)
+	client := &http.Client{
+		Timeout: timeoutDuration,
+		// No proxy configuration
+	}
+	metricsURL := fmt.Sprintf("%s/metrics", proxyAddr)
+	resp, err := client.Get(metricsURL)
+	require.NoError(t, err, "Failed to make metrics request")
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			t.Logf("Error closing metrics response body: %v", closeErr)
+		}
+	}()
+
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err, "Failed to read metrics response")
+
+	// Check for expected metrics content
+	assert.Contains(t, string(body), "requests_total")
+}
+
+// TestConnectionPooling tests connection pooling by making many concurrent requests
+func TestConnectionPooling(t *testing.T) {
+	testSrv := setupTestServer(t)
+	defer testSrv.shutdown(t)
+
+	proxySrv := startProxyServer(t)
+	defer proxySrv.stop(t)
+
+	// Make multiple concurrent requests
+	const numRequests = 20
+	done := make(chan bool, numRequests)
+
+	for i := 0; i < numRequests; i++ {
+		go func() {
+			targetURL := fmt.Sprintf("%s/hello", testServerAddr)
+			resp, _ := makeRequestThroughProxy(t, "GET", targetURL, nil, "")
+			assert.Equal(t, http.StatusOK, resp.StatusCode)
+			done <- true
+		}()
+	}
+
+	// Wait for all requests to complete
+	for i := 0; i < numRequests; i++ {
+		select {
+		case <-done:
+			// Request completed successfully
+		case <-time.After(timeoutDuration):
+			t.Fatal("Timeout waiting for requests to complete")
+		}
+	}
+}
+
+// TestProxyWithDifferentLogLevels tests the proxy with different log levels
+func TestProxyWithDifferentLogLevels(t *testing.T) {
+	logLevels := []string{"debug", "info", "warn", "error"}
+
+	for _, level := range logLevels {
+		t.Run(fmt.Sprintf("LogLevel=%s", level), func(t *testing.T) {
+			proxySrv := startProxyServer(t, "--log-level="+level)
+			defer proxySrv.stop(t)
+
+			testSrv := setupTestServer(t)
+			defer testSrv.shutdown(t)
+
+			targetURL := fmt.Sprintf("%s/hello", testServerAddr)
+			resp, _ := makeRequestThroughProxy(t, "GET", targetURL, nil, "")
+			assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+			// Check logs for appropriate log level messages - logs go to stderr
+			switch level {
+			case "debug":
+				assert.Contains(t, proxySrv.stderr.String(), "Starting proxy server on port")
+				assert.Contains(t, proxySrv.stderr.String(), "Received request")
+			case "info":
+				assert.NotContains(t, proxySrv.stderr.String(), "debug")
+			case "warn":
+				assert.NotContains(t, proxySrv.stderr.String(), "debug")
+				assert.NotContains(t, proxySrv.stderr.String(), "info")
+			case "error":
+				assert.NotContains(t, proxySrv.stderr.String(), "debug")
+				assert.NotContains(t, proxySrv.stderr.String(), "info")
+				assert.NotContains(t, proxySrv.stderr.String(), "warn")
+			}
+		})
+	}
+}
+
+// TestGracefulShutdown tests that the proxy shuts down gracefully
+func TestGracefulShutdown(t *testing.T) {
+	proxySrv := startProxyServer(t)
+
+	// Make a request to ensure proxy is working
+	testSrv := setupTestServer(t)
+	defer testSrv.shutdown(t)
+
+	targetURL := fmt.Sprintf("%s/hello", testServerAddr)
+	resp, _ := makeRequestThroughProxy(t, "GET", targetURL, nil, "")
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+	// Stop the proxy and check for graceful shutdown message
+	proxySrv.stop(t)
+
+	// Check stderr for shutdown message since that's where the proxy logs it
+	assert.Contains(t, proxySrv.stderr.String(), "Shutting down", "Proxy should indicate graceful shutdown")
 }

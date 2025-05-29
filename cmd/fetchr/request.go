@@ -64,7 +64,9 @@ func runRequest() error {
 	// Make the request
 	resp, err := api.MakeRequest(proxyURL, reqConfig)
 	if err != nil {
-		proxyServer.Stop()
+		if stopErr := proxyServer.Stop(); stopErr != nil {
+			log.Printf("Error stopping proxy server: %v", stopErr)
+		}
 		return fmt.Errorf("request failed: %v", err)
 	}
 
