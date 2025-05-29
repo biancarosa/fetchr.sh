@@ -9,9 +9,12 @@ VERSION := $(shell git describe --tags --always --dirty)
 build:
 	$(GO) build -o $(BINARY_NAME) ./cmd/fetchr
 
-# Run tests with coverage
+# Run unit tests with coverage
 test:
-	$(GO) test -v -race -coverprofile=coverage.txt -covermode=atomic ./...
+	$(GO) test -v -race -coverprofile=coverage.txt -covermode=atomic ./... -tags=unit
+
+e2e:
+	$(GO) test -v -race -coverprofile=coverage.txt -covermode=atomic ./test/e2e/... -tags=e2e
 
 # Run golangci-lint
 lint:
