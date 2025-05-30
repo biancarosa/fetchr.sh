@@ -1,4 +1,4 @@
-import { RequestConfig, ApiResponse, RequestHistory } from '../types/api';
+import { RequestConfig, ApiResponse } from '../types/api';
 
 // Backend request record from the Go API
 export interface BackendRequestRecord {
