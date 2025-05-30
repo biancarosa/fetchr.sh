@@ -439,7 +439,6 @@ func TestProxyWithDifferentLogLevels(t *testing.T) {
 	for _, level := range logLevels {
 		t.Run(fmt.Sprintf("LogLevel=%s", level), func(t *testing.T) {
 			proxySrv := startProxyServer(t, "--log-level="+level)
-			defer proxySrv.stop(t)
 
 			testSrv := setupTestServer(t)
 			defer testSrv.shutdown(t)
@@ -448,20 +447,26 @@ func TestProxyWithDifferentLogLevels(t *testing.T) {
 			resp, _ := makeRequestThroughProxy(t, "GET", targetURL, nil, "")
 			assert.Equal(t, http.StatusOK, resp.StatusCode)
 
+			// Stop the proxy BEFORE reading from stderr buffer to avoid race condition
+			proxySrv.stop(t)
+
+			// Now it's safe to read from stderr since process has stopped
+			stderrOutput := proxySrv.stderr.String()
+
 			// Check logs for appropriate log level messages - logs go to stderr
 			switch level {
 			case "debug":
-				assert.Contains(t, proxySrv.stderr.String(), "Starting proxy server on port")
-				assert.Contains(t, proxySrv.stderr.String(), "Received request")
+				assert.Contains(t, stderrOutput, "Starting proxy server on port")
+				assert.Contains(t, stderrOutput, "Received request")
 			case "info":
-				assert.NotContains(t, proxySrv.stderr.String(), "debug")
+				assert.NotContains(t, stderrOutput, "debug")
 			case "warn":
-				assert.NotContains(t, proxySrv.stderr.String(), "debug")
-				assert.NotContains(t, proxySrv.stderr.String(), "info")
+				assert.NotContains(t, stderrOutput, "debug")
+				assert.NotContains(t, stderrOutput, "info")
 			case "error":
-				assert.NotContains(t, proxySrv.stderr.String(), "debug")
-				assert.NotContains(t, proxySrv.stderr.String(), "info")
-				assert.NotContains(t, proxySrv.stderr.String(), "warn")
+				assert.NotContains(t, stderrOutput, "debug")
+				assert.NotContains(t, stderrOutput, "info")
+				assert.NotContains(t, stderrOutput, "warn")
 			}
 		})
 	}

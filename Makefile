@@ -1,27 +1,56 @@
 .PHONY: build test lint clean coverage release version install check ci help all dev commit-feat commit-fix commit-refactor commit-perf commit-security
+.PHONY: build-dashboard test-dashboard lint-dashboard clean-dashboard install-dashboard dashboard-dev serve-dev build-all clean-all
 
 # Build variables
 BINARY_NAME=fetchr
 GO=go
 VERSION := $(shell git describe --tags --always --dirty)
 GOLANGCI_LINT_VERSION=v2.1.6
+DASHBOARD_DIR=dashboard
 
 # Show help
 help:
 	@echo "Available targets:"
-	@echo "  help        - Show this help message"
-	@echo "  install     - Install development tools (golangci-lint, goimports)"
-	@echo "  deps        - Download and tidy Go modules"
-	@echo "  build       - Build the application"
-	@echo "  test        - Run unit tests with coverage"
-	@echo "  e2e         - Run end-to-end tests"
-	@echo "  lint        - Run golangci-lint"
-	@echo "  check       - Run all checks (deps, test, e2e, lint, build)"
-	@echo "  ci          - Run all CI checks (same as check)"
-	@echo "  coverage    - Show coverage report in browser"
-	@echo "  clean       - Clean build artifacts"
-	@echo "  version     - Show current version"
-	@echo "  release     - Create a new release tag (usage: make release version=1.0.0)"
+	@echo ""
+	@echo "Setup commands:"
+	@echo "  install          - Install Go development tools (golangci-lint, goimports)"
+	@echo "  deps             - Download and tidy Go modules"
+	@echo "  install-dashboard - Install dashboard dependencies"
+	@echo ""
+	@echo "Build commands:"
+	@echo "  build            - Build the Go application"
+	@echo "  build-dashboard  - Build the dashboard for production"
+	@echo "  build-all        - Build both backend and dashboard"
+	@echo ""
+	@echo "Test commands:"
+	@echo "  test             - Run Go unit tests with coverage"
+	@echo "  test-dashboard   - Run dashboard tests"
+	@echo "  e2e              - Run end-to-end tests"
+	@echo ""
+	@echo "Lint commands:"
+	@echo "  lint             - Run golangci-lint for Go code"
+	@echo "  lint-dashboard   - Run ESLint for dashboard code"
+	@echo ""
+	@echo "Development commands:"
+	@echo "  dev              - Start both backend and dashboard in development mode (fast start)"
+	@echo "  dev-safe         - Start development mode after running all checks (tests, lint, build)"
+	@echo "  serve-dev        - Start only the backend in development mode"
+	@echo "  dashboard-dev    - Start only the dashboard in development mode"
+	@echo ""
+	@echo "Quality commands:"
+	@echo "  check            - Run all Go checks (deps, test, e2e, lint, build)"
+	@echo "  ci               - Run all CI checks (same as check)"
+	@echo "  coverage         - Show Go coverage report in browser"
+	@echo ""
+	@echo "Utility commands:"
+	@echo "  clean            - Clean Go build artifacts"
+	@echo "  clean-dashboard  - Clean dashboard build artifacts"
+	@echo "  clean-all        - Clean all build artifacts"
+	@echo "  version          - Show current version"
+	@echo "  help             - Show this help message"
+	@echo ""
+	@echo "Release commands:"
+	@echo "  release          - Create a new release tag (usage: make release version=1.0.0)"
 	@echo ""
 	@echo "Commit helpers:"
 	@echo "  commit-feat      - Create a feature commit (usage: make commit-feat msg='your message')"
@@ -32,7 +61,7 @@ help:
 
 # Install development tools
 install:
-	@echo "Installing development tools..."
+	@echo "Installing Go development tools..."
 	@echo "Checking Go version..."
 	@go_version=$$(go version | sed 's/go version go\([0-9.]*\).*/\1/'); \
 	required_version="1.24"; \
@@ -54,41 +83,145 @@ install:
 	@echo "Installing other Go tools..."
 	@$(GO) install golang.org/x/tools/cmd/goimports@latest
 	@echo "✅ goimports installed successfully"
-	@echo "✅ All development tools installed!"
+	@echo "✅ All Go development tools installed!"
 	@echo ""
 	@echo "Make sure $$(go env GOPATH)/bin is in your PATH:"
 	@echo "  export PATH=\$$PATH:\$$(go env GOPATH)/bin"
 
-# Build the application
+# Install dashboard dependencies
+install-dashboard:
+	@echo "Installing dashboard dependencies..."
+	@if [ ! -d "$(DASHBOARD_DIR)" ]; then \
+		echo "❌ Error: Dashboard directory '$(DASHBOARD_DIR)' not found"; \
+		echo "Please ensure the dashboard code is in the '$(DASHBOARD_DIR)' directory"; \
+		exit 1; \
+	fi
+	@echo "Checking Node.js version..."
+	@node_version=$$(node --version | sed 's/v\([0-9]*\).*/\1/'); \
+	required_version="18"; \
+	if [ "$$node_version" -lt "$$required_version" ]; then \
+		echo "❌ Error: Node.js $$node_version detected, but Node.js $$required_version or higher is required"; \
+		echo ""; \
+		echo "Please install Node.js 18 or higher:"; \
+		echo "  - Download from: https://nodejs.org/"; \
+		echo "  - Or use nvm: nvm install 18"; \
+		echo "  - Or use Homebrew: brew install node"; \
+		echo ""; \
+		exit 1; \
+	else \
+		echo "✅ Node.js $$node_version detected (meets requirement: >=$$required_version)"; \
+	fi
+	@cd $(DASHBOARD_DIR) && npm install --legacy-peer-deps
+	@echo "✅ Dashboard dependencies installed successfully!"
+
+# Build the Go application
 build:
 	$(GO) build -o $(BINARY_NAME) ./cmd/fetchr
 
-# Run unit tests with coverage
+# Build the dashboard for production
+build-dashboard:
+	@if [ ! -d "$(DASHBOARD_DIR)" ]; then \
+		echo "❌ Error: Dashboard directory '$(DASHBOARD_DIR)' not found"; \
+		exit 1; \
+	fi
+	@cd $(DASHBOARD_DIR) && npm run build
+
+# Build both backend and dashboard
+build-all: build build-dashboard
+
+# Run Go unit tests with coverage
 test:
 	$(GO) test -v -race -coverprofile=coverage.txt -covermode=atomic ./... -tags=unit
 
+# Run dashboard tests
+test-dashboard:
+	@if [ ! -d "$(DASHBOARD_DIR)" ]; then \
+		echo "❌ Error: Dashboard directory '$(DASHBOARD_DIR)' not found"; \
+		exit 1; \
+	fi
+	@cd $(DASHBOARD_DIR) && npm run test --legacy-peer-deps
+
+# Run end-to-end tests
 e2e:
 	$(GO) test -v -race -coverprofile=coverage.txt -covermode=atomic ./test/e2e/... -tags=e2e
 
-# Run golangci-lint
+# Run golangci-lint for Go code
 lint:
 	golangci-lint run
 
-# Show coverage report
+# Run ESLint for dashboard code
+lint-dashboard:
+	@if [ ! -d "$(DASHBOARD_DIR)" ]; then \
+		echo "❌ Error: Dashboard directory '$(DASHBOARD_DIR)' not found"; \
+		exit 1; \
+	fi
+	@cd $(DASHBOARD_DIR) && npm run lint --legacy-peer-deps
+
+# Start both backend and dashboard in development mode
+dev: deps
+	@echo "Starting fetchr.sh in development mode..."
+	@echo "Backend will be available at http://localhost:8080"
+	@echo "Dashboard will be available at http://localhost:3000"
+	@echo ""
+	@echo "Press Ctrl+C to stop both services"
+	@trap 'kill %1 %2 2>/dev/null; exit' INT; \
+	$(MAKE) serve-dev & \
+	$(MAKE) dashboard-dev & \
+	wait
+
+# Start development environment after running all checks
+dev-safe: check
+	@echo "All checks passed! Starting fetchr.sh in development mode..."
+	@echo "Backend will be available at http://localhost:8080"
+	@echo "Dashboard will be available at http://localhost:3000"
+	@echo ""
+	@echo "Press Ctrl+C to stop both services"
+	@trap 'kill %1 %2 2>/dev/null; exit' INT; \
+	$(MAKE) serve-dev & \
+	$(MAKE) dashboard-dev & \
+	wait
+
+# Start only the backend in development mode
+serve-dev:
+	@echo "Starting backend in development mode on port 8080..."
+	@$(GO) run ./cmd/fetchr serve --port 8080 --log-level debug
+
+# Start only the dashboard in development mode
+dashboard-dev:
+	@if [ ! -d "$(DASHBOARD_DIR)" ]; then \
+		echo "❌ Error: Dashboard directory '$(DASHBOARD_DIR)' not found"; \
+		exit 1; \
+	fi
+	@echo "Starting dashboard in development mode on port 3000..."
+	@cd $(DASHBOARD_DIR) && npm run dev
+
+# Show Go coverage report
 coverage:
 	$(GO) tool cover -html=coverage.txt
 
-# Clean build artifacts
+# Clean Go build artifacts
 clean:
 	rm -f $(BINARY_NAME) coverage.txt
 	$(GO) clean
 
-# Install dependencies
+# Clean dashboard build artifacts
+clean-dashboard:
+	@if [ -d "$(DASHBOARD_DIR)" ]; then \
+		cd $(DASHBOARD_DIR) && rm -rf dist/ node_modules/.cache/; \
+	fi
+
+# Clean all build artifacts
+clean-all: clean clean-dashboard
+	@if [ -d "$(DASHBOARD_DIR)" ]; then \
+		cd $(DASHBOARD_DIR) && rm -rf node_modules/; \
+	fi
+
+# Install Go dependencies
 deps:
 	$(GO) mod download
 	$(GO) mod tidy
 
-# Run all checks (deps, test, e2e, lint, build)
+# Run all Go checks (deps, test, e2e, lint, build)
 check: deps test e2e lint build
 
 # Run all checks for CI (same as check but with explicit steps)
@@ -146,7 +279,4 @@ release:
 	git push origin "v$(version)"
 
 # Default target
-all: help
-
-# Development workflow
-dev: deps check 
+all: help 

@@ -54,6 +54,11 @@ func runServe() {
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 
+	// Add debug logging for when we're about to start
+	if *logLevel == "debug" {
+		log.Printf("Starting proxy server on port %d", config.Port)
+	}
+
 	go func() {
 		if err := proxyServer.Start(); err != nil {
 			log.Fatalf("Failed to start proxy server: %v", err)

@@ -1,112 +1,168 @@
-# fetchr.sh Implementation Rules
+# fetchr.sh Cursor Rules
 
-## File Structure
-- Keep related code together in appropriate packages
-- Follow Go project layout conventions
-- Maintain clear separation of concerns
+## Project Overview
+This is a Go-based HTTP proxy and request capture tool with a web dashboard frontend.
 
-## Code Style
+## General Rules
+- Always use `--legacy-peer-deps` when running npm commands
+- Follow conventional commits (feat:, fix:, refactor:, perf:, security:)
+- Use the Makefile for all development tasks
+- Run `make check` before committing
+- Write tests for all new features
+
+## Go Backend Rules
+
+### Code Style
 - Follow Go standard formatting (gofmt)
 - Use clear and descriptive variable names
-- Add comments for complex logic
-- Include examples in comments
+- Add comments for complex logic and public APIs
 - Follow Go best practices and idioms
+- Use structured logging with context
+- Handle errors properly with meaningful messages
 
-## Testing
-- Write unit tests for all new code
-- Include integration tests for features
-- Add performance tests for critical paths
-- Test all examples
+### File Structure
+- Keep related code together in appropriate packages
+- Follow Go project layout conventions:
+  - `cmd/` for main applications
+  - `internal/` for private application code
+  - `pkg/` for library code that can be imported
+  - `test/` for additional test files
+- Place tests next to the code: if file is `pkg/proxy/server.go`, test should be `pkg/proxy/server_test.go`
+
+### Testing
+- Write unit tests for all new code with `//go:build unit` tags
+- Include integration tests with appropriate build tags
+- Use table-driven tests for multiple test cases
+- Mock external dependencies
 - Maintain high test coverage
+- Run tests with `make test` and `make e2e`
 
-## Documentation
-- Update README.md with new features
-- Keep INTERFACES.md current with CLI changes
-- Update ROADMAP.md as features are completed
-- Add inline documentation for complex code
-- Include examples for new features
+### Dependencies
+- Use Go modules with pinned versions
+- Keep external dependencies minimal
+- Document dependency requirements in go.mod
+- Run `make deps` to manage dependencies
 
-## Version Control
-- Use conventional commits
-- Create feature branches from main
-- Include all documentation updates in PRs
-- Add test coverage reports
-- Update version numbers appropriately
+## Dashboard Frontend Rules
 
-## Feature Implementation
-1. Create feature branch
-2. Write tests first
-3. Implement feature
-4. Add documentation
-5. Create PR with all changes
-6. Update roadmap after merge
+### Technology Stack
+- Use modern JavaScript/TypeScript framework (React, Next.js, or Vue)
+- Use Tailwind CSS for styling
+- Use a component library for consistency
+- Always run npm commands with `--legacy-peer-deps`
 
-## Breaking Changes
-- Add migration guides
-- Update all examples
-- Mark deprecated features
-- Maintain backward compatibility
-- Increment major version
+### Code Style
+- Use TypeScript for type safety
+- Follow ESLint and Prettier configurations
+- Use functional components with hooks
+- Implement proper error boundaries
+- Use proper state management (Context API, Zustand, or Redux)
 
-## Dependencies
-- Use Go modules
-- Pin dependency versions
-- Document dependency requirements
-- Regular security updates
-- Minimal external dependencies
+### File Structure
+- Place dashboard code in `dashboard/` directory
+- Use consistent naming: PascalCase for components, camelCase for files
+- Group related components in folders
+- Separate API calls into service files
+- Place tests next to components: `Component.tsx` and `Component.test.tsx`
 
-## Performance
-- Profile critical paths
-- Optimize resource usage
-- Monitor memory usage
-- Consider concurrent operations
-- Document performance considerations
+### API Integration
+- Create typed interfaces for all API responses
+- Use proper error handling for API calls
+- Implement loading states and error states
+- Use environment variables for API endpoints
+- Implement proper authentication/authorization
 
-## Security
-- Follow security best practices
-- Regular security audits
-- Input validation
-- Secure configuration
-- Proper error handling
+## Development Workflow
+
+### Setup
+1. Run `make install` to install Go development tools
+2. Run `make deps` to install Go dependencies  
+3. Navigate to `dashboard/` and run `npm install --legacy-peer-deps`
+4. Run `make dev` to start both backend and frontend in development mode
+
+### Before Committing
+1. Run `make check` to run all Go checks
+2. Run `npm run lint --legacy-peer-deps` in dashboard directory
+3. Run `npm run test --legacy-peer-deps` in dashboard directory
+4. Ensure all tests pass and code is formatted
+
+### Commands to Use
+- `make help` - See all available commands
+- `make build` - Build Go binary
+- `make test` - Run Go unit tests
+- `make e2e` - Run end-to-end tests
+- `make lint` - Run Go linting
+- `make check` - Run all Go checks
+- `make dev` - Start development servers
+- `make build-dashboard` - Build dashboard for production
+- `make serve-dev` - Start backend in development mode
+
+## Feature Development
+
+### Adding New Features
+1. Create feature branch from main
+2. Write tests first (TDD)
+3. Implement Go backend changes
+4. Update dashboard if UI changes needed
+5. Update documentation
+6. Run `make check` and dashboard tests
+7. Create PR with all changes
+
+### API Changes
+- Update OpenAPI/Swagger specifications
+- Update TypeScript interfaces in dashboard
+- Add proper validation and error handling
+- Update integration tests
+- Document breaking changes
 
 ## Error Handling
-- Use meaningful error messages
-- Include error context
-- Proper error propagation
-- Log errors appropriately
-- Handle edge cases
+- Use meaningful error messages with context
+- Implement proper HTTP status codes
+- Log errors appropriately with structured logging
+- Handle edge cases gracefully
+- Display user-friendly errors in dashboard
 
-## Logging
-- Use structured logging
-- Include relevant context
-- Appropriate log levels
-- Log rotation
-- Performance impact consideration
+## Security
+- Validate all inputs on both backend and frontend
+- Use HTTPS in production
+- Implement proper CORS policies
+- Sanitize user inputs
+- Follow OWASP guidelines
+- Regular security audits
+
+## Performance
+- Profile critical paths in Go code
+- Optimize database queries
+- Implement proper caching strategies
+- Use lazy loading in dashboard
+- Monitor bundle sizes for frontend
+- Implement proper pagination for large datasets
 
 ## Configuration
-- Use environment variables
+- Use environment variables for configuration
 - Support configuration files
-- Validate configuration
-- Default values
-- Configuration hot-reload
+- Validate all configuration on startup
+- Document all configuration options
+- Use sensible defaults
 
-## API Design
-- Follow REST principles
-- Version APIs appropriately
-- Document endpoints
-- Include examples
-- Consider backward compatibility
-
-## Monitoring
-- Add metrics endpoints
-- Include health checks
-- Performance monitoring
-- Resource usage tracking
-- Alert thresholds
+## Documentation
+- Update README.md for new features
+- Keep API documentation current
+- Add inline code documentation
+- Include examples for complex features
+- Update ROADMAP.md as features are completed
 
 ## Deployment
-- Container support
-- Cloud provider integration
-- Deployment guides
-- Configuration management
-- Scaling considerations 
+- Support containerization (Docker)
+- Include production build scripts
+- Document deployment procedures
+- Support multiple environments
+- Include health checks and monitoring
+
+## Monitoring and Logging
+- Use structured logging throughout
+- Include relevant context in logs
+- Implement metrics endpoints
+- Add health check endpoints
+- Monitor resource usage
+- Set up appropriate alerts 
