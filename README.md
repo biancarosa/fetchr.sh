@@ -2,6 +2,8 @@
 
 A modern HTTP proxy and request capture tool with a sleek web dashboard.
 
+<!-- badges --->
+
 ## Features
 
 - **HTTP Proxy Server**: Forward HTTP requests through the proxy

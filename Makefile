@@ -206,7 +206,7 @@ test-dashboard:
 
 # Run end-to-end tests
 e2e:
-	$(GO) test -v -race -coverprofile=coverage.txt -covermode=atomic ./test/e2e/... -tags=e2e
+	$(GO) test -v -race -coverprofile=coverage-e2e.txt -covermode=atomic ./test/e2e/... -tags=e2e
 
 # Run golangci-lint for Go code
 lint:
@@ -264,7 +264,7 @@ coverage:
 
 # Clean Go build artifacts
 clean:
-	rm -f $(BINARY_NAME) coverage.txt
+	rm -f $(BINARY_NAME) coverage.txt coverage-e2e.txt
 	$(GO) clean
 
 # Clean dashboard build artifacts
