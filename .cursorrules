@@ -10,6 +10,50 @@ This is a Go-based HTTP proxy and request capture tool with a web dashboard fron
 - Run `make check` before committing
 - Write tests for all new features
 
+## Commit Message Format
+Follow proper Git commit message conventions:
+
+### Format
+```
+<type>(<scope>): <short summary>
+
+<detailed description with bullet points>
+```
+
+### Rules
+- **Subject line**: Keep under 50-72 characters
+- **Type**: Use conventional commit types (feat, fix, refactor, perf, security, docs, test, chore)
+- **Scope**: Optional, specify component affected (dashboard, proxy, api, etc.)
+- **Summary**: Imperative mood, no period at end
+- **Body**: Detailed description with bullet points for multiple changes
+- **Separate**: Blank line between subject and body
+
+### Examples
+```
+feat(dashboard): add request history integration
+
+- Enhanced Sidebar with tabbed interface for local vs proxy history
+- Added RequestStats component with comprehensive statistics
+- Integrated backend request history API endpoints
+- Added automatic refresh and clear history functionality
+```
+
+```
+fix(proxy): resolve CORS issues for admin endpoints
+
+- Added proper CORS headers to all admin endpoints
+- Fixed preflight request handling
+- Updated health check endpoint configuration
+```
+
+```
+docs: update README with request history features
+
+- Added comprehensive dashboard feature documentation
+- Included API endpoint reference
+- Added usage examples and configuration details
+```
+
 ## Go Backend Rules
 
 ### Code Style
