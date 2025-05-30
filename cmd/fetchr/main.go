@@ -34,17 +34,15 @@ func main() {
 func runServe() {
 	// Parse command line flags
 	port := flag.Int("port", 8080, "Port to listen on")
+	adminPort := flag.Int("admin-port", 0, "Admin port for health checks and metrics (0 to disable)")
 	logLevel := flag.String("log-level", "info", "Logging level (debug, info, warn, error)")
-	metrics := flag.Bool("metrics", false, "Enable metrics endpoint")
-	health := flag.Bool("health", false, "Enable health check endpoint")
 	flag.Parse()
 
 	// Create proxy configuration
 	config := &proxy.Config{
-		Port:     *port,
-		LogLevel: *logLevel,
-		Metrics:  *metrics,
-		Health:   *health,
+		Port:      *port,
+		AdminPort: *adminPort,
+		LogLevel:  *logLevel,
 	}
 
 	// Create and start proxy server
@@ -57,6 +55,9 @@ func runServe() {
 	// Add debug logging for when we're about to start
 	if *logLevel == "debug" {
 		log.Printf("Starting proxy server on port %d", config.Port)
+		if config.AdminPort > 0 {
+			log.Printf("Admin endpoints will be available on port %d", config.AdminPort)
+		}
 	}
 
 	go func() {
@@ -66,6 +67,9 @@ func runServe() {
 	}()
 
 	log.Printf("Proxy server started on port %d", config.Port)
+	if config.AdminPort > 0 {
+		log.Printf("Admin server started on port %d (health: /healthz, metrics: /metrics)", config.AdminPort)
+	}
 
 	// Wait for shutdown signal
 	<-sigChan

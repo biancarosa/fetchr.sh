@@ -13,17 +13,17 @@ import (
 
 // Config holds the proxy configuration
 type Config struct {
-	Port     int
-	LogLevel string
-	Metrics  bool
-	Health   bool
+	Port      int
+	AdminPort int
+	LogLevel  string
 }
 
 // Proxy represents the HTTP proxy server
 type Proxy struct {
-	config     *Config
-	server     *http.Server
-	httpClient *http.Client
+	config      *Config
+	server      *http.Server
+	adminServer *http.Server
+	httpClient  *http.Client
 }
 
 // New creates a new Proxy instance
@@ -35,10 +35,24 @@ func New(config *Config) *Proxy {
 		},
 	}
 
-	// Initialize the HTTP server
+	// Initialize the main HTTP proxy server
 	proxy.server = &http.Server{
 		Addr:    fmt.Sprintf(":%d", config.Port),
 		Handler: proxy,
+	}
+
+	// Initialize the admin server if admin port is specified
+	if config.AdminPort > 0 {
+		adminMux := http.NewServeMux()
+
+		// Always enable both health and metrics when admin port is specified
+		adminMux.HandleFunc("/healthz", proxy.handleHealth)
+		adminMux.HandleFunc("/metrics", proxy.handleMetrics)
+
+		proxy.adminServer = &http.Server{
+			Addr:    fmt.Sprintf(":%d", config.AdminPort),
+			Handler: adminMux,
+		}
 	}
 
 	return proxy
@@ -49,18 +63,6 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Debug logging for received requests
 	if p.config.LogLevel == "debug" {
 		log.Printf("Received request: %s %s", r.Method, r.URL.String())
-	}
-
-	// Check for health endpoint if enabled
-	if p.config.Health && r.URL.Path == "/healthz" {
-		p.handleHealth(w, r)
-		return
-	}
-
-	// Check for metrics endpoint if enabled
-	if p.config.Metrics && r.URL.Path == "/metrics" {
-		p.handleMetrics(w, r)
-		return
 	}
 
 	// For CONNECT method (HTTPS tunneling)
@@ -177,6 +179,17 @@ func (p *Proxy) handleConnect(w http.ResponseWriter, r *http.Request) {
 
 // handleHealth handles health check requests
 func (p *Proxy) handleHealth(w http.ResponseWriter, r *http.Request) {
+	// Add CORS headers to allow requests from the dashboard
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+	// Handle preflight requests
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	if _, err := w.Write([]byte(`{"status":"healthy","proxy":"fetchr.sh"}`)); err != nil {
@@ -186,6 +199,17 @@ func (p *Proxy) handleHealth(w http.ResponseWriter, r *http.Request) {
 
 // handleMetrics handles metrics requests
 func (p *Proxy) handleMetrics(w http.ResponseWriter, r *http.Request) {
+	// Add CORS headers to allow requests from the dashboard
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+	// Handle preflight requests
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
 	w.Header().Set("Content-Type", "text/plain")
 	w.WriteHeader(http.StatusOK)
 	// Simple metrics for now - can be expanded later
@@ -202,20 +226,48 @@ fetchr_proxy_status 1
 	}
 }
 
-// Start starts the proxy server
+// Start starts the proxy server and admin server (if configured)
 func (p *Proxy) Start() error {
 	if p.server == nil {
 		return fmt.Errorf("server not initialized")
 	}
 
+	// Start admin server in background if configured
+	if p.adminServer != nil {
+		go func() {
+			log.Printf("Starting admin server on port %d", p.config.AdminPort)
+			if err := p.adminServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+				log.Printf("Admin server error: %v", err)
+			}
+		}()
+	}
+
+	log.Printf("Starting proxy server on port %d", p.config.Port)
 	return p.server.ListenAndServe()
 }
 
-// Stop stops the proxy server
+// Stop stops both the proxy server and admin server
 func (p *Proxy) Stop() error {
-	if p.server == nil {
-		return fmt.Errorf("server not initialized")
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	var proxyErr, adminErr error
+
+	if p.server != nil {
+		proxyErr = p.server.Shutdown(ctx)
 	}
 
-	return p.server.Shutdown(context.TODO())
+	if p.adminServer != nil {
+		adminErr = p.adminServer.Shutdown(ctx)
+	}
+
+	// Return the first error encountered
+	if proxyErr != nil {
+		return fmt.Errorf("proxy server shutdown error: %v", proxyErr)
+	}
+	if adminErr != nil {
+		return fmt.Errorf("admin server shutdown error: %v", adminErr)
+	}
+
+	return nil
 }

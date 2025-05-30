@@ -24,14 +24,13 @@ go install github.com/biancarosa/fetchr.sh/cmd/fetchr@latest
 ### Starting the Proxy Server
 
 ```bash
-fetchr serve --port 8080 --log-level info --dashboard
+fetchr serve --port 8080 --log-level info --admin-port 8081
 ```
 
 Available flags:
 - `--port`: Port to listen on (default: 8080)
 - `--log-level`: Logging level (debug, info, warn, error)
-- `--metrics`: Enable metrics endpoint
-- `--health`: Enable health check endpoint
+- `--admin-port`: Admin port for health checks and metrics (0 to disable, default: 0)
 - `--dashboard`: Enable web dashboard (default: false)
 - `--dashboard-port`: Dashboard port (default: 3000)
 
