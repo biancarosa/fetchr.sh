@@ -1,5 +1,5 @@
 .PHONY: build test lint clean coverage release version install check ci help all dev commit-feat commit-fix commit-refactor commit-perf commit-security
-.PHONY: build-dashboard test-dashboard lint-dashboard clean-dashboard install-dashboard dashboard-dev serve-dev build-all clean-all
+.PHONY: build-dashboard test-dashboard lint-dashboard clean-dashboard install-dashboard install-backend dashboard-dev serve-dev build-all clean-all
 
 # Build variables
 BINARY_NAME=fetchr
@@ -13,9 +13,10 @@ help:
 	@echo "Available targets:"
 	@echo ""
 	@echo "Setup commands:"
-	@echo "  install          - Install Go development tools (golangci-lint, goimports)"
+	@echo "  install          - Install Go development tools and frontend dependencies (complete setup)"
+	@echo "  install-backend  - Install Go development tools only (golangci-lint, goimports)"
+	@echo "  install-dashboard - Install dashboard dependencies only"
 	@echo "  deps             - Download and tidy Go modules"
-	@echo "  install-dashboard - Install dashboard dependencies"
 	@echo ""
 	@echo "Build commands:"
 	@echo "  build            - Build the Go application"
@@ -59,8 +60,22 @@ help:
 	@echo "  commit-perf      - Create a performance commit (usage: make commit-perf msg='your message')"
 	@echo "  commit-security  - Create a security commit (usage: make commit-security msg='your message')"
 
-# Install development tools
+# Install all development tools (backend + frontend)
 install:
+	@echo "🚀 Setting up complete development environment..."
+	@echo ""
+	@$(MAKE) install-backend
+	@echo ""
+	@$(MAKE) install-dashboard
+	@echo ""
+	@echo "🎉 All setup complete! Both backend and frontend dependencies are ready."
+	@echo ""
+	@echo "Next steps:"
+	@echo "  - Run 'make dev' to start both backend and frontend in development mode"
+	@echo "  - Run 'make check' to run all Go checks before committing"
+
+# Install backend development tools
+install-backend:
 	@echo "Installing Go development tools..."
 	@echo "Checking Go version..."
 	@go_version=$$(go version | sed 's/go version go\([0-9.]*\).*/\1/'); \
@@ -77,13 +92,28 @@ install:
 	else \
 		echo "✅ Go $$go_version detected (meets requirement: >=$$required_version)"; \
 	fi
-	@echo "Installing golangci-lint $(GOLANGCI_LINT_VERSION)..."
-	@curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $$(go env GOPATH)/bin $(GOLANGCI_LINT_VERSION)
-	@echo "✅ golangci-lint installed successfully"
-	@echo "Installing other Go tools..."
-	@$(GO) install golang.org/x/tools/cmd/goimports@latest
-	@echo "✅ goimports installed successfully"
-	@echo "✅ All Go development tools installed!"
+	@echo "Checking golangci-lint..."
+	@if command -v golangci-lint >/dev/null 2>&1; then \
+		current_version=$$(golangci-lint --version | grep -o 'version [0-9.]*' | cut -d' ' -f2); \
+		target_version=$$(echo "$(GOLANGCI_LINT_VERSION)" | sed 's/^v//'); \
+		echo "✅ golangci-lint $$current_version is already installed"; \
+		if [ "$$current_version" != "$$target_version" ]; then \
+			echo "ℹ️  Target version is $$target_version, but $$current_version is sufficient"; \
+		fi; \
+	else \
+		echo "Installing golangci-lint $(GOLANGCI_LINT_VERSION)..."; \
+		curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $$(go env GOPATH)/bin $(GOLANGCI_LINT_VERSION); \
+		echo "✅ golangci-lint installed successfully"; \
+	fi
+	@echo "Checking goimports..."
+	@if command -v goimports >/dev/null 2>&1; then \
+		echo "✅ goimports is already installed"; \
+	else \
+		echo "Installing goimports..."; \
+		$(GO) install golang.org/x/tools/cmd/goimports@latest; \
+		echo "✅ goimports installed successfully"; \
+	fi
+	@echo "✅ All Go development tools are ready!"
 	@echo ""
 	@echo "Make sure $$(go env GOPATH)/bin is in your PATH:"
 	@echo "  export PATH=\$$PATH:\$$(go env GOPATH)/bin"
@@ -111,8 +141,15 @@ install-dashboard:
 	else \
 		echo "✅ Node.js $$node_version detected (meets requirement: >=$$required_version)"; \
 	fi
-	@cd $(DASHBOARD_DIR) && npm install --legacy-peer-deps
-	@echo "✅ Dashboard dependencies installed successfully!"
+	@echo "Checking dashboard dependencies..."
+	@if [ -d "$(DASHBOARD_DIR)/node_modules" ] && [ -f "$(DASHBOARD_DIR)/package-lock.json" ]; then \
+		echo "✅ Dashboard dependencies are already installed"; \
+		echo "ℹ️  Run 'npm install --legacy-peer-deps' in $(DASHBOARD_DIR) to update if needed"; \
+	else \
+		echo "Installing dashboard dependencies..."; \
+		cd $(DASHBOARD_DIR) && npm install --legacy-peer-deps; \
+		echo "✅ Dashboard dependencies installed successfully!"; \
+	fi
 
 # Build the Go application
 build:
