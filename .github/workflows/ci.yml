@@ -41,3 +41,5 @@ jobs:
           files: ./coverage.txt
           fail_ci_if_error: true
           flags: unittests
+          token: ${{ secrets.CODECOV_TOKEN }}
+          slug: platformlabs-co/fetchr.sh
