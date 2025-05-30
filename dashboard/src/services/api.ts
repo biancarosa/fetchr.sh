@@ -15,9 +15,9 @@ export interface BackendRequestRecord {
   upstream_start_time: string;
   upstream_end_time: string;
   proxy_end_time: string;
-  proxy_overhead_ms: number;
-  upstream_latency_ms: number;
-  total_duration_ms: number;
+  proxy_overhead_us: number;
+  upstream_latency_us: number;
+  total_duration_us: number;
   request_size: number;
   response_size: number;
   success: boolean;
@@ -33,9 +33,9 @@ export interface RequestStats {
   total_requests: number;
   success_count: number;
   error_count: number;
-  avg_duration_ms: number;
-  avg_upstream_latency_ms: number;
-  avg_proxy_overhead_ms: number;
+  avg_duration_us: number;
+  avg_upstream_latency_us: number;
+  avg_proxy_overhead_us: number;
   total_request_size: number;
   total_response_size: number;
   status_codes?: Record<number, number>;
@@ -55,12 +55,34 @@ class ApiService {
     this.adminPort = parseInt(process.env.NEXT_PUBLIC_ADMIN_PORT || '8081');
   }
 
+  // Add no-cache headers to prevent browser caching
+  private getDefaultHeaders(): HeadersInit {
+    return {
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0',
+    };
+  }
+
+  // Add timestamp to URL to bust cache
+  private addCacheBuster(url: string): string {
+    const separator = url.includes('?') ? '&' : '?';
+    return `${url}${separator}_t=${Date.now()}`;
+  }
+
   async makeRequest(config: RequestConfig): Promise<ApiResponse> {
     const startTime = Date.now();
     
     try {
       // Convert headers object to fetch headers
       const headers = new Headers();
+      
+      // Add default no-cache headers first
+      Object.entries(this.getDefaultHeaders()).forEach(([key, value]) => {
+        headers.set(key, value);
+      });
+
+      // Then add user-specified headers
       Object.entries(config.headers).forEach(([key, value]) => {
         if (key && value) {
           headers.append(key, value);
@@ -84,6 +106,7 @@ class ApiService {
         method: config.method,
         headers,
         body: config.body || undefined,
+        cache: 'no-store', // Prevent caching at the fetch level
       };
 
       // Send request to the proxy server, which will forward it to the destination
@@ -123,7 +146,12 @@ class ApiService {
   // Get request history from the backend
   async getRequestHistory(): Promise<BackendRequestRecord[]> {
     try {
-      const response = await fetch(`http://${this.proxyHost}:${this.adminPort}/requests`);
+      const url = this.addCacheBuster(`http://${this.proxyHost}:${this.adminPort}/requests`);
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: this.getDefaultHeaders(),
+        cache: 'no-store',
+      });
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
@@ -138,7 +166,12 @@ class ApiService {
   // Get request statistics from the backend
   async getRequestStats(): Promise<RequestStats | null> {
     try {
-      const response = await fetch(`http://${this.proxyHost}:${this.adminPort}/requests/stats`);
+      const url = this.addCacheBuster(`http://${this.proxyHost}:${this.adminPort}/requests/stats`);
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: this.getDefaultHeaders(),
+        cache: 'no-store',
+      });
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
@@ -152,11 +185,14 @@ class ApiService {
   // Clear request history on the backend
   async clearRequestHistory(): Promise<boolean> {
     try {
-      const response = await fetch(`http://${this.proxyHost}:${this.adminPort}/requests/clear`, {
+      const url = this.addCacheBuster(`http://${this.proxyHost}:${this.adminPort}/requests/clear`);
+      const response = await fetch(url, {
         method: 'POST',
         headers: {
+          ...this.getDefaultHeaders(),
           'Content-Type': 'application/json',
         },
+        cache: 'no-store',
       });
       return response.ok;
     } catch (error) {
@@ -168,7 +204,12 @@ class ApiService {
   // Health check for proxy (now on admin port)
   async checkProxyHealth(): Promise<boolean> {
     try {
-      const response = await fetch(`http://${this.proxyHost}:${this.adminPort}/healthz`);
+      const url = this.addCacheBuster(`http://${this.proxyHost}:${this.adminPort}/healthz`);
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: this.getDefaultHeaders(),
+        cache: 'no-store',
+      });
       return response.ok;
     } catch {
       return false;

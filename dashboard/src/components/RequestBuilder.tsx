@@ -12,6 +12,7 @@ import { Badge } from './ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 import { Plus, X, Send, RotateCcw, Copy } from 'lucide-react';
 import { useRequestStore } from '../hooks/useRequestStore';
+import { useRefresh } from '../hooks/useRefreshContext';
 import { apiService } from '../services/api';
 import { HttpMethod, ApiError } from '../types/api';
 
@@ -37,6 +38,8 @@ export function RequestBuilder() {
     setError,
     reset,
   } = useRequestStore();
+
+  const { triggerRefresh } = useRefresh();
 
   const handleSendRequest = async () => {
     if (!url.trim()) {
@@ -66,6 +69,9 @@ export function RequestBuilder() {
 
       const apiResponse = await apiService.makeRequest(requestConfig);
       setResponse(apiResponse);
+      
+      // Trigger refresh of statistics and history after successful request
+      triggerRefresh();
     } catch (err: unknown) {
       const error = err as ApiError;
       const errorMessage = error?.body || error?.message || 'Request failed';

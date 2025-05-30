@@ -10,6 +10,8 @@ A modern, sleek web dashboard for the fetchr.sh HTTP proxy tool. Built with Next
 - **Dynamic Headers**: Add, remove, and toggle headers with real-time validation
 - **Request Body**: Support for JSON, XML, plain text, and other content types
 - **Auto Content-Type**: Automatically detects and sets appropriate content-type headers
+- **Auto-Refresh Integration**: Automatically refreshes statistics and history when requests are sent
+- **No-Cache Requests**: All requests include no-cache headers to ensure fresh data
 
 ### 📊 Response Viewer
 - **Real-time Responses**: View API responses with syntax highlighting
@@ -22,15 +24,33 @@ A modern, sleek web dashboard for the fetchr.sh HTTP proxy tool. Built with Next
 ### 📚 Request History
 - **View Proxy Requests**: All requests that pass through the proxy appear in the left sidebar
 - **Real-time Updates**: History automatically refreshes with new proxy requests
+- **Auto-Refresh**: Automatically refreshes when requests are sent from the dashboard
+- **Manual Refresh**: Click the refresh button to manually update the history
 - **Replay Requests**: Click any history item to load it into the request builder
 - **Clear History**: Use the trash icon to clear all proxy request history
 - **External Links**: Click the external link icon to open URLs in new tabs
-- **Timing Details**: View detailed proxy overhead and upstream latency metrics
+- **Timing Details**: View detailed proxy overhead and upstream latency metrics with microsecond precision
+- **Fresh Data**: All history requests include cache-busting to ensure up-to-date information
 
 **Note**: Only requests that pass through the fetchr.sh proxy server are tracked in the history. Requests made directly from the dashboard are not stored in the history.
 
+### 📈 Request Statistics
+- **Real-time Metrics**: Live statistics for proxy requests with comprehensive data
+- **Auto-Refresh**: Statistics automatically refresh when requests are sent from the dashboard
+- **Manual Refresh**: Click the refresh button in the statistics panel header
+- **Request Counts**: Success and error counts with visual indicators
+- **Success Rate**: Color-coded success rate percentage
+- **High-Precision Timing**: Microsecond-precision performance metrics for accurate analysis
+  - Average request duration
+  - Average upstream latency  
+  - Average proxy overhead
+- **Data Transfer**: Total request and response sizes with formatted display
+- **Status Code Distribution**: Top status codes with counts
+- **HTTP Method Distribution**: Request method breakdown with counts
+- **Cache-Free Updates**: Statistics are fetched with no-cache headers for real-time accuracy
+
 ### 🔧 Proxy Integration
-- **Health Monitoring**: Real-time proxy server status monitoring
+- **Health Monitoring**: Real-time proxy server status monitoring with no-cache health checks
 - **Connection Status**: Visual indicators for proxy connectivity
 - **Auto-refresh**: Periodic health checks every 30 seconds
 - **Configuration Display**: Shows current proxy host and port
@@ -88,7 +108,7 @@ npm start
 - **Replay Requests**: Click any history item to load it into the request builder
 - **Clear History**: Use the trash icon to clear all proxy request history
 - **External Links**: Click the external link icon to open URLs in new tabs
-- **Timing Details**: View detailed proxy overhead and upstream latency metrics
+- **Timing Details**: View detailed proxy overhead and upstream latency metrics with microsecond precision
 
 **Note**: Only requests that pass through the fetchr.sh proxy server are tracked in the history. Requests made directly from the dashboard are not stored in the history.
 
@@ -211,17 +231,4 @@ When the fetchr.sh backend supports it, the dashboard will integrate with:
 - `GET /api/requests` - Fetch request history
 - `POST /api/requests` - Make requests through proxy
 - `GET /api/health` - Proxy health status
-- `GET /api/stats` - Request statistics
-- `POST /api/replay` - Replay captured requests
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Run tests and linting
-5. Submit a pull request
-
-## License
-
-This project is part of the fetchr.sh tool suite. See the main project for license information.
+- `GET /api/stats`

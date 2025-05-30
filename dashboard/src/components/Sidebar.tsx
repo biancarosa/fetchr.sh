@@ -8,6 +8,7 @@ import { ScrollArea } from './ui/scroll-area';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 import { History, Trash2, ExternalLink, Server, RefreshCw } from 'lucide-react';
 import { useRequestStore } from '../hooks/useRequestStore';
+import { useRefresh } from '../hooks/useRefreshContext';
 import { apiService, BackendRequestRecord } from '../services/api';
 import { formatDistanceToNow } from 'date-fns';
 import { HttpMethod } from '../types/api';
@@ -20,6 +21,7 @@ export function Sidebar() {
     setBody,
   } = useRequestStore();
 
+  const { onRefresh } = useRefresh();
   const [backendHistory, setBackendHistory] = useState<BackendRequestRecord[]>([]);
   const [isLoadingBackend, setIsLoadingBackend] = useState(false);
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
@@ -52,6 +54,12 @@ export function Sidebar() {
   useEffect(() => {
     fetchBackendHistory();
   }, []);
+
+  // Listen for refresh events from other components  
+  useEffect(() => {
+    const cleanup = onRefresh(fetchBackendHistory);
+    return cleanup;
+  }, [onRefresh]);
 
   const loadBackendHistoryItem = (item: BackendRequestRecord) => {
     setMethod(item.method as HttpMethod);
@@ -214,13 +222,13 @@ export function Sidebar() {
                           <TooltipProvider>
                             <Tooltip>
                               <TooltipTrigger asChild>
-                                <span>{item.total_duration_ms}ms</span>
+                                <span>{(item.total_duration_us / 1000).toFixed(1)}ms</span>
                               </TooltipTrigger>
                               <TooltipContent>
                                 <div className="text-xs">
-                                  <div>Total: {item.total_duration_ms}ms</div>
-                                  <div>Upstream: {item.upstream_latency_ms}ms</div>
-                                  <div>Proxy: {item.proxy_overhead_ms}ms</div>
+                                  <div>Total: {(item.total_duration_us / 1000).toFixed(1)}ms</div>
+                                  <div>Upstream: {(item.upstream_latency_us / 1000).toFixed(1)}ms</div>
+                                  <div>Proxy: {(item.proxy_overhead_us / 1000).toFixed(1)}ms</div>
                                 </div>
                               </TooltipContent>
                             </Tooltip>

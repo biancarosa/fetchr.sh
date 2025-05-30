@@ -5,6 +5,8 @@ package proxy
 import (
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestNewRequestHistory(t *testing.T) {
@@ -145,19 +147,19 @@ func TestCalculateMetrics(t *testing.T) {
 
 	r := records[0]
 
-	// Total duration should be 20ms
-	if r.TotalDurationMs != 20 {
-		t.Errorf("Expected TotalDurationMs 20, got %d", r.TotalDurationMs)
+	// Total duration should be 20000µs (20ms)
+	if r.TotalDurationUs != 20000 {
+		t.Errorf("Expected TotalDurationUs 20000, got %d", r.TotalDurationUs)
 	}
 
-	// Upstream latency should be 10ms
-	if r.UpstreamLatencyMs != 10 {
-		t.Errorf("Expected UpstreamLatencyMs 10, got %d", r.UpstreamLatencyMs)
+	// Upstream latency should be 10000µs (10ms)
+	if r.UpstreamLatencyUs != 10000 {
+		t.Errorf("Expected UpstreamLatencyUs 10000, got %d", r.UpstreamLatencyUs)
 	}
 
-	// Proxy overhead should be 10ms (20 - 10)
-	if r.ProxyOverheadMs != 10 {
-		t.Errorf("Expected ProxyOverheadMs 10, got %d", r.ProxyOverheadMs)
+	// Proxy overhead should be 10000µs (10ms = 20ms - 10ms)
+	if r.ProxyOverheadUs != 10000 {
+		t.Errorf("Expected ProxyOverheadUs 10000, got %d", r.ProxyOverheadUs)
 	}
 }
 
@@ -242,9 +244,9 @@ func TestGetStats(t *testing.T) {
 		t.Errorf("Expected 1 error_count, got %v", stats["error_count"])
 	}
 
-	// Check averages (should be (20+15)/2 = 17.5, but integer division gives 17)
-	if stats["avg_duration_ms"] != int64(17) {
-		t.Errorf("Expected avg_duration_ms 17, got %v", stats["avg_duration_ms"])
+	// Check averages: (20000+15000)/2 = 17500µs
+	if stats["avg_duration_us"] != int64(17500) {
+		t.Errorf("Expected avg_duration_us 17500, got %v", stats["avg_duration_us"])
 	}
 
 	// Check status codes
@@ -264,4 +266,38 @@ func TestGetStats(t *testing.T) {
 	if methods["POST"] != 1 {
 		t.Errorf("Expected 1 POST request, got %d", methods["POST"])
 	}
+}
+
+func TestProxyOverheadCalculation(t *testing.T) {
+	history := NewRequestHistory(10)
+
+	// Create a test record with known timing values
+	now := time.Now()
+	record := RequestRecord{
+		ID:                "test-overhead",
+		Method:            "GET",
+		URL:               "http://example.com",
+		ProxyStartTime:    now,                            // Start: 0µs
+		UpstreamStartTime: now.Add(5 * time.Millisecond),  // Proxy processing: 5000µs
+		UpstreamEndTime:   now.Add(15 * time.Millisecond), // Upstream latency: 10000µs
+		ProxyEndTime:      now.Add(20 * time.Millisecond), // Total: 20000µs
+		Success:           true,
+	}
+
+	history.AddRecord(record)
+
+	// Verify the calculated metrics
+	records := history.GetRecords()
+	assert.Len(t, records, 1)
+
+	calculatedRecord := records[0]
+	assert.Equal(t, int64(20000), calculatedRecord.TotalDurationUs)   // 20ms = 20000µs total
+	assert.Equal(t, int64(10000), calculatedRecord.UpstreamLatencyUs) // 10ms = 10000µs upstream
+	assert.Equal(t, int64(10000), calculatedRecord.ProxyOverheadUs)   // 10ms = 10000µs proxy overhead
+
+	// Verify stats calculation
+	stats := history.GetStats()
+	assert.Equal(t, int64(20000), stats["avg_duration_us"])
+	assert.Equal(t, int64(10000), stats["avg_upstream_latency_us"])
+	assert.Equal(t, int64(10000), stats["avg_proxy_overhead_us"])
 }

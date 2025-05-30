@@ -24,10 +24,10 @@ type RequestRecord struct {
 	UpstreamEndTime   time.Time `json:"upstream_end_time"`
 	ProxyEndTime      time.Time `json:"proxy_end_time"`
 
-	// Calculated metrics
-	ProxyOverheadMs   int64 `json:"proxy_overhead_ms"`   // Time spent in proxy logic
-	UpstreamLatencyMs int64 `json:"upstream_latency_ms"` // Time waiting for upstream
-	TotalDurationMs   int64 `json:"total_duration_ms"`   // Total time from client perspective
+	// Calculated metrics (in microseconds for better precision)
+	ProxyOverheadUs   int64 `json:"proxy_overhead_us"`   // Time spent in proxy logic (microseconds)
+	UpstreamLatencyUs int64 `json:"upstream_latency_us"` // Time waiting for upstream (microseconds)
+	TotalDurationUs   int64 `json:"total_duration_us"`   // Total time from client perspective (microseconds)
 
 	// Size metrics
 	RequestSize  int64 `json:"request_size"`
@@ -59,9 +59,9 @@ func (h *RequestHistory) AddRecord(record RequestRecord) {
 	defer h.mutex.Unlock()
 
 	// Calculate metrics
-	record.TotalDurationMs = record.ProxyEndTime.Sub(record.ProxyStartTime).Milliseconds()
-	record.UpstreamLatencyMs = record.UpstreamEndTime.Sub(record.UpstreamStartTime).Milliseconds()
-	record.ProxyOverheadMs = record.TotalDurationMs - record.UpstreamLatencyMs
+	record.TotalDurationUs = record.ProxyEndTime.Sub(record.ProxyStartTime).Microseconds()
+	record.UpstreamLatencyUs = record.UpstreamEndTime.Sub(record.UpstreamStartTime).Microseconds()
+	record.ProxyOverheadUs = record.TotalDurationUs - record.UpstreamLatencyUs
 
 	// Add to beginning of slice (most recent first)
 	h.records = append([]RequestRecord{record}, h.records...)
@@ -117,9 +117,9 @@ func (h *RequestHistory) GetStats() map[string]interface{} {
 	methodCounts := make(map[string]int)
 
 	for _, record := range h.records {
-		totalDuration += record.TotalDurationMs
-		totalUpstreamLatency += record.UpstreamLatencyMs
-		totalProxyOverhead += record.ProxyOverheadMs
+		totalDuration += record.TotalDurationUs
+		totalUpstreamLatency += record.UpstreamLatencyUs
+		totalProxyOverhead += record.ProxyOverheadUs
 		totalRequestSize += record.RequestSize
 		totalResponseSize += record.ResponseSize
 
@@ -138,9 +138,9 @@ func (h *RequestHistory) GetStats() map[string]interface{} {
 		"total_requests":          count,
 		"success_count":           successCount,
 		"error_count":             errorCount,
-		"avg_duration_ms":         totalDuration / int64(count),
-		"avg_upstream_latency_ms": totalUpstreamLatency / int64(count),
-		"avg_proxy_overhead_ms":   totalProxyOverhead / int64(count),
+		"avg_duration_us":         totalDuration / int64(count),
+		"avg_upstream_latency_us": totalUpstreamLatency / int64(count),
+		"avg_proxy_overhead_us":   totalProxyOverhead / int64(count),
 		"total_request_size":      totalRequestSize,
 		"total_response_size":     totalResponseSize,
 		"status_codes":            statusCounts,
