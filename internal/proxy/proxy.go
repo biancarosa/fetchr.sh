@@ -148,7 +148,7 @@ func (p *Proxy) handleHTTP(w http.ResponseWriter, r *http.Request) {
 	// Always add CORS headers to allow any web application to use the proxy
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS")
-	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-Fetchr-Destination, Authorization, Accept, Origin, X-Requested-With")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-Fetchr-Destination, Authorization, Accept, Origin, X-Requested-With, Cache-Control, Pragma, Expires")
 	w.Header().Set("Access-Control-Expose-Headers", "*")
 
 	// Handle preflight requests
@@ -263,6 +263,9 @@ func (p *Proxy) handleHTTP(w http.ResponseWriter, r *http.Request) {
 	record.ResponseSize = responseSize
 	record.Success = true
 
+	// End proxy processing timing here - before we start writing response to client
+	record.ProxyEndTime = time.Now()
+
 	// Copy response headers
 	for key, values := range resp.Header {
 		// Override any CORS headers we set earlier with the upstream response headers
@@ -293,14 +296,13 @@ func (p *Proxy) handleHTTP(w http.ResponseWriter, r *http.Request) {
 		record.Success = false
 	}
 
-	// End timing and record
-	record.ProxyEndTime = time.Now()
+	// Record the request (proxy processing complete)
 	p.history.AddRecord(record)
 
 	// Debug logging for completed requests
 	if p.config.LogLevel == "debug" {
-		log.Printf("HTTP request completed: %s %s -> %d (%dms)",
-			r.Method, r.URL.String(), resp.StatusCode, record.TotalDurationMs)
+		log.Printf("HTTP request completed: %s %s -> %d (%dus)",
+			r.Method, r.URL.String(), resp.StatusCode, record.TotalDurationUs)
 	}
 }
 
@@ -355,7 +357,7 @@ func (p *Proxy) handleHealth(w http.ResponseWriter, r *http.Request) {
 	// Add CORS headers to allow requests from the dashboard
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
-	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Cache-Control, Pragma, Expires")
 
 	// Handle preflight requests
 	if r.Method == http.MethodOptions {
@@ -375,7 +377,7 @@ func (p *Proxy) handleMetrics(w http.ResponseWriter, r *http.Request) {
 	// Add CORS headers to allow requests from the dashboard
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
-	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Cache-Control, Pragma, Expires")
 
 	// Handle preflight requests
 	if r.Method == http.MethodOptions {
@@ -404,7 +406,7 @@ func (p *Proxy) handleRequestHistory(w http.ResponseWriter, r *http.Request) {
 	// Add CORS headers
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
-	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Cache-Control, Pragma, Expires")
 
 	// Handle preflight requests
 	if r.Method == http.MethodOptions {
@@ -435,7 +437,7 @@ func (p *Proxy) handleRequestStats(w http.ResponseWriter, r *http.Request) {
 	// Add CORS headers
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
-	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Cache-Control, Pragma, Expires")
 
 	// Handle preflight requests
 	if r.Method == http.MethodOptions {
@@ -467,7 +469,7 @@ func (p *Proxy) handleClearHistory(w http.ResponseWriter, r *http.Request) {
 	// Add CORS headers
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
-	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Cache-Control, Pragma, Expires")
 
 	// Handle preflight requests
 	if r.Method == http.MethodOptions {

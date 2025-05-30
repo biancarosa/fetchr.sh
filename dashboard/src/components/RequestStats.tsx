@@ -7,6 +7,7 @@ import { Button } from './ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 import { BarChart3, CheckCircle, XCircle, RefreshCw } from 'lucide-react';
 import { apiService, RequestStats as RequestStatsType } from '../services/api';
+import { useRefresh } from '../hooks/useRefreshContext';
 
 interface RequestStatsProps {
   className?: string;
@@ -16,6 +17,7 @@ export function RequestStats({ className }: RequestStatsProps) {
   const [stats, setStats] = useState<RequestStatsType | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { onRefresh } = useRefresh();
 
   const fetchStats = async () => {
     setIsLoading(true);
@@ -34,6 +36,12 @@ export function RequestStats({ className }: RequestStatsProps) {
   useEffect(() => {
     fetchStats();
   }, []);
+
+  // Listen for refresh events from other components
+  useEffect(() => {
+    const cleanup = onRefresh(fetchStats);
+    return cleanup;
+  }, [onRefresh]);
 
   const formatBytes = (bytes: number): string => {
     if (bytes === 0) return '0 B';
@@ -125,15 +133,15 @@ export function RequestStats({ className }: RequestStatsProps) {
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-xs text-muted-foreground">Avg Duration</span>
-                <span className="text-xs font-medium">{stats.avg_duration_ms?.toFixed(1) || 0}ms</span>
+                <span className="text-xs font-medium">{(stats.avg_duration_us / 1000).toFixed(1)}ms</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-xs text-muted-foreground">Avg Upstream</span>
-                <span className="text-xs font-medium">{stats.avg_upstream_latency_ms?.toFixed(1) || 0}ms</span>
+                <span className="text-xs font-medium">{(stats.avg_upstream_latency_us / 1000).toFixed(1)}ms</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-xs text-muted-foreground">Avg Proxy</span>
-                <span className="text-xs font-medium">{stats.avg_proxy_overhead_ms?.toFixed(1) || 0}ms</span>
+                <span className="text-xs font-medium">{(stats.avg_proxy_overhead_us / 1000).toFixed(1)}ms</span>
               </div>
             </div>
 
