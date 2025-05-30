@@ -1,3 +1,5 @@
+//go:build e2e
+
 package e2e
 
 import (
@@ -47,6 +49,15 @@ func setupTestServer(t *testing.T) *testServer {
 
 	// Echo endpoint that returns request details
 	mux.HandleFunc("/echo", func(w http.ResponseWriter, r *http.Request) {
+		// Handle OPTIONS request with CORS headers
+		if r.Method == "OPTIONS" {
+			w.Header().Set("Access-Control-Allow-Origin", "*")
+			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS")
+			w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
 		body, err := io.ReadAll(r.Body)
 		if err != nil {
 			http.Error(w, "Error reading body", http.StatusInternalServerError)
@@ -324,6 +335,11 @@ func TestBasicProxyFunctionality(t *testing.T) {
 				resp, body := makeRequestThroughProxy(t, method, targetURL, nil, "")
 
 				assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+				// Skip JSON parsing for OPTIONS requests
+				if method == "OPTIONS" {
+					return
+				}
 
 				var responseData map[string]interface{}
 				err := json.Unmarshal(body, &responseData)
