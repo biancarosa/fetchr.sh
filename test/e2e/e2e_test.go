@@ -337,15 +337,15 @@ func TestBasicProxyFunctionality(t *testing.T) {
 
 // TestHealthCheckEndpoint tests the health check endpoint
 func TestHealthCheckEndpoint(t *testing.T) {
-	proxySrv := startProxyServer(t, "--health")
+	proxySrv := startProxyServer(t, "--admin-port", "9998")
 	defer proxySrv.stop(t)
 
-	// Direct request to health endpoint on the proxy (not through proxy)
+	// Direct request to health endpoint on the admin server (not through proxy)
 	client := &http.Client{
 		Timeout: timeoutDuration,
 		// No proxy configuration
 	}
-	healthURL := fmt.Sprintf("%s/healthz", proxyAddr)
+	healthURL := "http://localhost:9998/healthz"
 	resp, err := client.Get(healthURL)
 	require.NoError(t, err, "Failed to make health check request")
 	defer func() {
@@ -364,7 +364,7 @@ func TestHealthCheckEndpoint(t *testing.T) {
 
 // TestMetricsEndpoint tests the metrics endpoint
 func TestMetricsEndpoint(t *testing.T) {
-	proxySrv := startProxyServer(t, "--metrics")
+	proxySrv := startProxyServer(t, "--admin-port", "9997")
 	defer proxySrv.stop(t)
 
 	// Make a few requests through the proxy to generate metrics
@@ -377,12 +377,12 @@ func TestMetricsEndpoint(t *testing.T) {
 		makeRequestThroughProxy(t, "GET", targetURL, nil, "")
 	}
 
-	// Direct request to metrics endpoint on the proxy (not through proxy)
+	// Direct request to metrics endpoint on the admin server (not through proxy)
 	client := &http.Client{
 		Timeout: timeoutDuration,
 		// No proxy configuration
 	}
-	metricsURL := fmt.Sprintf("%s/metrics", proxyAddr)
+	metricsURL := "http://localhost:9997/metrics"
 	resp, err := client.Get(metricsURL)
 	require.NoError(t, err, "Failed to make metrics request")
 	defer func() {
@@ -489,4 +489,93 @@ func TestGracefulShutdown(t *testing.T) {
 
 	// Check stderr for shutdown message since that's where the proxy logs it
 	assert.Contains(t, proxySrv.stderr.String(), "Shutting down", "Proxy should indicate graceful shutdown")
+}
+
+// TestRequestHistoryEndpoints tests the request history functionality
+func TestRequestHistoryEndpoints(t *testing.T) {
+	proxySrv := startProxyServer(t, "--admin-port", "9996", "--history-size", "10")
+	defer proxySrv.stop(t)
+
+	testSrv := setupTestServer(t)
+	defer testSrv.shutdown(t)
+
+	// Clear any existing history
+	client := &http.Client{Timeout: timeoutDuration}
+	clearResp, err := client.Post("http://localhost:9996/requests/clear", "application/json", nil)
+	require.NoError(t, err, "Failed to clear history")
+	clearResp.Body.Close()
+
+	// Make some test requests through the proxy
+	targetURL1 := fmt.Sprintf("%s/hello", testServerAddr)
+	makeRequestThroughProxy(t, "GET", targetURL1, nil, "")
+
+	targetURL2 := fmt.Sprintf("%s/echo", testServerAddr)
+	headers := map[string]string{"Content-Type": "application/json"}
+	makeRequestThroughProxy(t, "POST", targetURL2, headers, `{"test": "data"}`)
+
+	// Test request history endpoint
+	historyResp, err := client.Get("http://localhost:9996/requests")
+	require.NoError(t, err, "Failed to get request history")
+	defer historyResp.Body.Close()
+
+	assert.Equal(t, http.StatusOK, historyResp.StatusCode)
+
+	var historyData map[string]interface{}
+	err = json.NewDecoder(historyResp.Body).Decode(&historyData)
+	require.NoError(t, err, "Failed to decode history response")
+
+	records, ok := historyData["records"].([]interface{})
+	require.True(t, ok, "Records should be an array")
+	assert.Equal(t, 2, len(records), "Should have 2 requests in history")
+
+	// Check the most recent record (POST request)
+	mostRecent := records[0].(map[string]interface{})
+	assert.Equal(t, "POST", mostRecent["method"])
+	assert.Contains(t, mostRecent["url"], "/echo")
+	assert.Equal(t, `{"test": "data"}`, mostRecent["request_body"])
+	assert.Equal(t, float64(200), mostRecent["response_status"])
+	assert.True(t, mostRecent["success"].(bool))
+
+	// Test request stats endpoint
+	statsResp, err := client.Get("http://localhost:9996/requests/stats")
+	require.NoError(t, err, "Failed to get request stats")
+	defer statsResp.Body.Close()
+
+	assert.Equal(t, http.StatusOK, statsResp.StatusCode)
+
+	var statsData map[string]interface{}
+	err = json.NewDecoder(statsResp.Body).Decode(&statsData)
+	require.NoError(t, err, "Failed to decode stats response")
+
+	assert.Equal(t, float64(2), statsData["total_requests"])
+	assert.Equal(t, float64(2), statsData["success_count"])
+	assert.Equal(t, float64(0), statsData["error_count"])
+
+	// Check method counts
+	methods := statsData["methods"].(map[string]interface{})
+	assert.Equal(t, float64(1), methods["GET"])
+	assert.Equal(t, float64(1), methods["POST"])
+
+	// Check status codes
+	statusCodes := statsData["status_codes"].(map[string]interface{})
+	assert.Equal(t, float64(2), statusCodes["200"])
+
+	// Test clear history endpoint
+	clearResp, err = client.Post("http://localhost:9996/requests/clear", "application/json", nil)
+	require.NoError(t, err, "Failed to clear history")
+	defer clearResp.Body.Close()
+
+	assert.Equal(t, http.StatusOK, clearResp.StatusCode)
+
+	// Verify history is cleared
+	historyResp, err = client.Get("http://localhost:9996/requests")
+	require.NoError(t, err, "Failed to get request history after clear")
+	defer historyResp.Body.Close()
+
+	err = json.NewDecoder(historyResp.Body).Decode(&historyData)
+	require.NoError(t, err, "Failed to decode history response after clear")
+
+	records, ok = historyData["records"].([]interface{})
+	require.True(t, ok, "Records should be an array")
+	assert.Equal(t, 0, len(records), "History should be empty after clear")
 }

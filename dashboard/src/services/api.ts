@@ -1,5 +1,47 @@
 import { RequestConfig, ApiResponse, RequestHistory } from '../types/api';
 
+// Backend request record from the Go API
+export interface BackendRequestRecord {
+  id: string;
+  timestamp: string;
+  method: string;
+  url: string;
+  request_headers: Record<string, string>;
+  request_body?: string;
+  response_status: number;
+  response_headers: Record<string, string>;
+  response_body?: string;
+  proxy_start_time: string;
+  upstream_start_time: string;
+  upstream_end_time: string;
+  proxy_end_time: string;
+  proxy_overhead_ms: number;
+  upstream_latency_ms: number;
+  total_duration_ms: number;
+  request_size: number;
+  response_size: number;
+  success: boolean;
+  error?: string;
+}
+
+export interface BackendHistoryResponse {
+  records: BackendRequestRecord[];
+  total: number;
+}
+
+export interface RequestStats {
+  total_requests: number;
+  success_count: number;
+  error_count: number;
+  avg_duration_ms: number;
+  avg_upstream_latency_ms: number;
+  avg_proxy_overhead_ms: number;
+  total_request_size: number;
+  total_response_size: number;
+  status_codes: Record<number, number>;
+  methods: Record<string, number>;
+}
+
 class ApiService {
   private baseUrl: string;
   private proxyHost: string;
@@ -73,10 +115,49 @@ class ApiService {
     }
   }
 
-  // Future endpoint for request history
-  async getRequestHistory(): Promise<RequestHistory[]> {
-    // This will be implemented when backend supports it
-    return [];
+  // Get request history from the backend
+  async getRequestHistory(): Promise<BackendRequestRecord[]> {
+    try {
+      const response = await fetch(`http://${this.proxyHost}:${this.adminPort}/requests`);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      const data: BackendHistoryResponse = await response.json();
+      return data.records;
+    } catch (error) {
+      console.error('Failed to fetch request history:', error);
+      return [];
+    }
+  }
+
+  // Get request statistics from the backend
+  async getRequestStats(): Promise<RequestStats | null> {
+    try {
+      const response = await fetch(`http://${this.proxyHost}:${this.adminPort}/requests/stats`);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('Failed to fetch request stats:', error);
+      return null;
+    }
+  }
+
+  // Clear request history on the backend
+  async clearRequestHistory(): Promise<boolean> {
+    try {
+      const response = await fetch(`http://${this.proxyHost}:${this.adminPort}/requests/clear`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      return response.ok;
+    } catch (error) {
+      console.error('Failed to clear request history:', error);
+      return false;
+    }
   }
 
   // Health check for proxy (now on admin port)

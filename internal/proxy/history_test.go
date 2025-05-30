@@ -1,0 +1,267 @@
+//go:build unit
+
+package proxy
+
+import (
+	"testing"
+	"time"
+)
+
+func TestNewRequestHistory(t *testing.T) {
+	maxSize := 5
+	history := NewRequestHistory(maxSize)
+
+	if history == nil {
+		t.Fatal("NewRequestHistory returned nil")
+	}
+
+	if history.maxSize != maxSize {
+		t.Errorf("Expected maxSize %d, got %d", maxSize, history.maxSize)
+	}
+
+	if len(history.records) != 0 {
+		t.Errorf("Expected empty records, got length %d", len(history.records))
+	}
+}
+
+func TestAddRecord(t *testing.T) {
+	history := NewRequestHistory(3)
+
+	// Create test records
+	record1 := RequestRecord{
+		ID:                "1",
+		Timestamp:         time.Now(),
+		Method:            "GET",
+		URL:               "http://example.com",
+		ProxyStartTime:    time.Now(),
+		UpstreamStartTime: time.Now().Add(time.Millisecond),
+		UpstreamEndTime:   time.Now().Add(2 * time.Millisecond),
+		ProxyEndTime:      time.Now().Add(3 * time.Millisecond),
+		Success:           true,
+	}
+
+	record2 := RequestRecord{
+		ID:                "2",
+		Timestamp:         time.Now(),
+		Method:            "POST",
+		URL:               "http://example.com/api",
+		ProxyStartTime:    time.Now(),
+		UpstreamStartTime: time.Now().Add(time.Millisecond),
+		UpstreamEndTime:   time.Now().Add(2 * time.Millisecond),
+		ProxyEndTime:      time.Now().Add(3 * time.Millisecond),
+		Success:           true,
+	}
+
+	// Add first record
+	history.AddRecord(record1)
+	records := history.GetRecords()
+
+	if len(records) != 1 {
+		t.Errorf("Expected 1 record, got %d", len(records))
+	}
+
+	if records[0].ID != "1" {
+		t.Errorf("Expected first record ID '1', got '%s'", records[0].ID)
+	}
+
+	// Add second record
+	history.AddRecord(record2)
+	records = history.GetRecords()
+
+	if len(records) != 2 {
+		t.Errorf("Expected 2 records, got %d", len(records))
+	}
+
+	// Verify most recent first
+	if records[0].ID != "2" {
+		t.Errorf("Expected most recent record ID '2', got '%s'", records[0].ID)
+	}
+
+	if records[1].ID != "1" {
+		t.Errorf("Expected second record ID '1', got '%s'", records[1].ID)
+	}
+}
+
+func TestMaxSize(t *testing.T) {
+	maxSize := 2
+	history := NewRequestHistory(maxSize)
+
+	// Add records exceeding max size
+	for i := 1; i <= 4; i++ {
+		record := RequestRecord{
+			ID:                string(rune('0' + i)),
+			Timestamp:         time.Now(),
+			Method:            "GET",
+			URL:               "http://example.com",
+			ProxyStartTime:    time.Now(),
+			UpstreamStartTime: time.Now().Add(time.Millisecond),
+			UpstreamEndTime:   time.Now().Add(2 * time.Millisecond),
+			ProxyEndTime:      time.Now().Add(3 * time.Millisecond),
+			Success:           true,
+		}
+		history.AddRecord(record)
+	}
+
+	records := history.GetRecords()
+
+	// Should only keep the last 2 records
+	if len(records) != maxSize {
+		t.Errorf("Expected %d records, got %d", maxSize, len(records))
+	}
+
+	// Should have the most recent ones (4 and 3)
+	if records[0].ID != "4" {
+		t.Errorf("Expected most recent record ID '4', got '%s'", records[0].ID)
+	}
+
+	if records[1].ID != "3" {
+		t.Errorf("Expected second record ID '3', got '%s'", records[1].ID)
+	}
+}
+
+func TestCalculateMetrics(t *testing.T) {
+	history := NewRequestHistory(10)
+
+	// Create a record with specific timing
+	now := time.Now()
+	record := RequestRecord{
+		ID:                "test",
+		Timestamp:         now,
+		Method:            "GET",
+		URL:               "http://example.com",
+		ProxyStartTime:    now,
+		UpstreamStartTime: now.Add(5 * time.Millisecond),
+		UpstreamEndTime:   now.Add(15 * time.Millisecond),
+		ProxyEndTime:      now.Add(20 * time.Millisecond),
+		Success:           true,
+	}
+
+	history.AddRecord(record)
+	records := history.GetRecords()
+
+	if len(records) != 1 {
+		t.Fatalf("Expected 1 record, got %d", len(records))
+	}
+
+	r := records[0]
+
+	// Total duration should be 20ms
+	if r.TotalDurationMs != 20 {
+		t.Errorf("Expected TotalDurationMs 20, got %d", r.TotalDurationMs)
+	}
+
+	// Upstream latency should be 10ms
+	if r.UpstreamLatencyMs != 10 {
+		t.Errorf("Expected UpstreamLatencyMs 10, got %d", r.UpstreamLatencyMs)
+	}
+
+	// Proxy overhead should be 10ms (20 - 10)
+	if r.ProxyOverheadMs != 10 {
+		t.Errorf("Expected ProxyOverheadMs 10, got %d", r.ProxyOverheadMs)
+	}
+}
+
+func TestClear(t *testing.T) {
+	history := NewRequestHistory(10)
+
+	// Add some records
+	for i := 1; i <= 3; i++ {
+		record := RequestRecord{
+			ID:        string(rune('0' + i)),
+			Timestamp: time.Now(),
+			Method:    "GET",
+			URL:       "http://example.com",
+			Success:   true,
+		}
+		history.AddRecord(record)
+	}
+
+	if len(history.GetRecords()) != 3 {
+		t.Errorf("Expected 3 records before clear, got %d", len(history.GetRecords()))
+	}
+
+	// Clear history
+	history.Clear()
+
+	if len(history.GetRecords()) != 0 {
+		t.Errorf("Expected 0 records after clear, got %d", len(history.GetRecords()))
+	}
+}
+
+func TestGetStats(t *testing.T) {
+	history := NewRequestHistory(10)
+
+	// Test empty stats
+	stats := history.GetStats()
+	if stats["total_requests"] != 0 {
+		t.Errorf("Expected 0 total_requests for empty history, got %v", stats["total_requests"])
+	}
+
+	// Add test records
+	now := time.Now()
+
+	// Successful GET request
+	history.AddRecord(RequestRecord{
+		ID:                "1",
+		Method:            "GET",
+		ResponseStatus:    200,
+		ProxyStartTime:    now,
+		UpstreamStartTime: now.Add(5 * time.Millisecond),
+		UpstreamEndTime:   now.Add(15 * time.Millisecond),
+		ProxyEndTime:      now.Add(20 * time.Millisecond),
+		RequestSize:       100,
+		ResponseSize:      500,
+		Success:           true,
+	})
+
+	// Failed POST request
+	history.AddRecord(RequestRecord{
+		ID:                "2",
+		Method:            "POST",
+		ResponseStatus:    500,
+		ProxyStartTime:    now,
+		UpstreamStartTime: now.Add(2 * time.Millisecond),
+		UpstreamEndTime:   now.Add(12 * time.Millisecond),
+		ProxyEndTime:      now.Add(15 * time.Millisecond),
+		RequestSize:       200,
+		ResponseSize:      100,
+		Success:           false,
+	})
+
+	stats = history.GetStats()
+
+	if stats["total_requests"] != 2 {
+		t.Errorf("Expected 2 total_requests, got %v", stats["total_requests"])
+	}
+
+	if stats["success_count"] != 1 {
+		t.Errorf("Expected 1 success_count, got %v", stats["success_count"])
+	}
+
+	if stats["error_count"] != 1 {
+		t.Errorf("Expected 1 error_count, got %v", stats["error_count"])
+	}
+
+	// Check averages (should be (20+15)/2 = 17.5, but integer division gives 17)
+	if stats["avg_duration_ms"] != int64(17) {
+		t.Errorf("Expected avg_duration_ms 17, got %v", stats["avg_duration_ms"])
+	}
+
+	// Check status codes
+	statusCodes := stats["status_codes"].(map[int]int)
+	if statusCodes[200] != 1 {
+		t.Errorf("Expected 1 request with status 200, got %d", statusCodes[200])
+	}
+	if statusCodes[500] != 1 {
+		t.Errorf("Expected 1 request with status 500, got %d", statusCodes[500])
+	}
+
+	// Check methods
+	methods := stats["methods"].(map[string]int)
+	if methods["GET"] != 1 {
+		t.Errorf("Expected 1 GET request, got %d", methods["GET"])
+	}
+	if methods["POST"] != 1 {
+		t.Errorf("Expected 1 POST request, got %d", methods["POST"])
+	}
+}
