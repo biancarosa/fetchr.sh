@@ -17,19 +17,23 @@ import (
 
 // Config holds the proxy configuration
 type Config struct {
-	Port        int
-	AdminPort   int
-	LogLevel    string
-	HistorySize int // Maximum number of requests to keep in history
+	Port          int
+	AdminPort     int
+	LogLevel      string
+	HistorySize   int    // Maximum number of requests to keep in history
+	Dashboard     bool   // Enable dashboard serving
+	DashboardPort int    // Port for dashboard (separate from admin port)
+	DashboardDir  string // Directory containing dashboard build files
 }
 
 // Proxy represents the HTTP proxy server
 type Proxy struct {
-	config      *Config
-	server      *http.Server
-	adminServer *http.Server
-	httpClient  *http.Client
-	history     *RequestHistory
+	config          *Config
+	server          *http.Server
+	adminServer     *http.Server
+	dashboardServer *http.Server
+	httpClient      *http.Client
+	history         *RequestHistory
 }
 
 // New creates a new Proxy instance
@@ -70,6 +74,52 @@ func New(config *Config) *Proxy {
 		proxy.adminServer = &http.Server{
 			Addr:    fmt.Sprintf(":%d", config.AdminPort),
 			Handler: adminMux,
+		}
+	}
+
+	// Initialize the dashboard server if dashboard is enabled
+	if config.Dashboard && config.DashboardPort > 0 {
+		dashboardMux := http.NewServeMux()
+
+		// Serve static files from dashboard directory
+		if config.DashboardDir != "" {
+			fileServer := http.FileServer(http.Dir(config.DashboardDir))
+			dashboardMux.Handle("/", fileServer)
+		} else {
+			// Fallback - serve a simple message if no dashboard directory specified
+			dashboardMux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "text/html")
+				w.WriteHeader(http.StatusOK)
+				html := `<!DOCTYPE html>
+<html>
+<head>
+    <title>fetchr.sh Dashboard</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; margin-top: 50px; }
+        .container { max-width: 600px; margin: 0 auto; }
+        .error { color: #e74c3c; }
+        .info { color: #3498db; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>fetchr.sh Dashboard</h1>
+        <p class="error">Dashboard files not found</p>
+        <p class="info">To use the dashboard, build it first:</p>
+        <pre>cd dashboard && npm run build</pre>
+        <p class="info">Then specify the dashboard directory with --dashboard-dir flag</p>
+    </div>
+</body>
+</html>`
+				if _, err := w.Write([]byte(html)); err != nil {
+					log.Printf("Error writing dashboard fallback response: %v", err)
+				}
+			})
+		}
+
+		proxy.dashboardServer = &http.Server{
+			Addr:    fmt.Sprintf(":%d", config.DashboardPort),
+			Handler: dashboardMux,
 		}
 	}
 
@@ -408,6 +458,16 @@ func (p *Proxy) Start() error {
 		}()
 	}
 
+	// Start dashboard server in background if configured
+	if p.dashboardServer != nil {
+		go func() {
+			log.Printf("Starting dashboard server on port %d", p.config.DashboardPort)
+			if err := p.dashboardServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+				log.Printf("Dashboard server error: %v", err)
+			}
+		}()
+	}
+
 	log.Printf("Starting proxy server on port %d", p.config.Port)
 	return p.server.ListenAndServe()
 }
@@ -417,7 +477,7 @@ func (p *Proxy) Stop() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	var proxyErr, adminErr error
+	var proxyErr, adminErr, dashboardErr error
 
 	if p.server != nil {
 		proxyErr = p.server.Shutdown(ctx)
@@ -427,12 +487,19 @@ func (p *Proxy) Stop() error {
 		adminErr = p.adminServer.Shutdown(ctx)
 	}
 
+	if p.dashboardServer != nil {
+		dashboardErr = p.dashboardServer.Shutdown(ctx)
+	}
+
 	// Return the first error encountered
 	if proxyErr != nil {
 		return fmt.Errorf("proxy server shutdown error: %v", proxyErr)
 	}
 	if adminErr != nil {
 		return fmt.Errorf("admin server shutdown error: %v", adminErr)
+	}
+	if dashboardErr != nil {
+		return fmt.Errorf("dashboard server shutdown error: %v", dashboardErr)
 	}
 
 	return nil

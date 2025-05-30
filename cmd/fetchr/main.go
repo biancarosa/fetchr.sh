@@ -36,15 +36,21 @@ func runServe() {
 	port := flag.Int("port", 8080, "Port to listen on")
 	adminPort := flag.Int("admin-port", 0, "Admin port for health checks and metrics (0 to disable)")
 	historySize := flag.Int("history-size", 1000, "Maximum number of requests to keep in history")
+	dashboard := flag.Bool("dashboard", false, "Enable web dashboard")
+	dashboardPort := flag.Int("dashboard-port", 3000, "Dashboard port")
+	dashboardDir := flag.String("dashboard-dir", "dashboard/out", "Directory containing dashboard build files")
 	logLevel := flag.String("log-level", "info", "Logging level (debug, info, warn, error)")
 	flag.Parse()
 
 	// Create proxy configuration
 	config := &proxy.Config{
-		Port:        *port,
-		AdminPort:   *adminPort,
-		HistorySize: *historySize,
-		LogLevel:    *logLevel,
+		Port:          *port,
+		AdminPort:     *adminPort,
+		HistorySize:   *historySize,
+		Dashboard:     *dashboard,
+		DashboardPort: *dashboardPort,
+		DashboardDir:  *dashboardDir,
+		LogLevel:      *logLevel,
 	}
 
 	// Create and start proxy server
@@ -61,6 +67,10 @@ func runServe() {
 			log.Printf("Admin endpoints will be available on port %d", config.AdminPort)
 			log.Printf("Request history size: %d", config.HistorySize)
 		}
+		if config.Dashboard {
+			log.Printf("Dashboard will be available on port %d", config.DashboardPort)
+			log.Printf("Dashboard directory: %s", config.DashboardDir)
+		}
 	}
 
 	go func() {
@@ -72,6 +82,9 @@ func runServe() {
 	log.Printf("Proxy server started on port %d", config.Port)
 	if config.AdminPort > 0 {
 		log.Printf("Admin server started on port %d (health: /healthz, metrics: /metrics, history: /requests)", config.AdminPort)
+	}
+	if config.Dashboard {
+		log.Printf("Dashboard server started on port %d", config.DashboardPort)
 	}
 
 	// Wait for shutdown signal
