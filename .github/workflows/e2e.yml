@@ -1,0 +1,115 @@
+name: End-to-End Tests
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch: # Allow manual triggering
+
+jobs:
+  e2e:
+    name: End-to-End Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+          check-latest: true
+
+      - name: Cache Go modules and build cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-e2e-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-e2e-
+            ${{ runner.os }}-go-
+
+      - name: Download Go modules
+        run: go mod download
+
+      - name: Build fetchr binary
+        run: make build
+
+      - name: Run end-to-end tests
+        run: |
+          echo "🚀 Starting end-to-end tests..."
+          make e2e
+        env:
+          GO_TEST_TIMEOUT: 10m
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-test-results
+          path: |
+            coverage.txt
+            *.log
+          retention-days: 30
+
+      - name: Comment PR on failure
+        if: failure() && github.event_name == 'push'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const { sha } = context;
+            
+            // Find recent commits to identify potential related PRs
+            const commits = await github.rest.repos.listCommits({
+              owner,
+              repo,
+              sha,
+              per_page: 5
+            });
+            
+            const commit = commits.data[0];
+            const commitMessage = commit.commit.message;
+            
+            // Create an issue to track the failure
+            await github.rest.issues.create({
+              owner,
+              repo,
+              title: `🚨 E2E Tests Failed on Main Branch (${sha.substring(0, 7)})`,
+              body: `
+              ## E2E Test Failure Report
+              
+              **Commit**: ${sha}
+              **Commit Message**: ${commitMessage}
+              **Branch**: main
+              **Workflow**: [End-to-End Tests](${context.payload.repository.html_url}/actions/runs/${context.runId})
+              
+              The end-to-end tests failed after merging to the main branch. This indicates that the latest changes may have introduced issues with the core proxy functionality.
+              
+              ### Next Steps
+              1. Review the [failed workflow logs](${context.payload.repository.html_url}/actions/runs/${context.runId})
+              2. Check if this is a flaky test or a real issue
+              3. If it's a real issue, consider creating a hotfix
+              4. Update tests if the failure is due to intended changes
+              
+              ### Test Results
+              Check the uploaded artifacts for detailed test results and coverage information.
+              
+              cc: @${context.actor}
+              `,
+              labels: ['bug', 'e2e-failure', 'urgent']
+            });
+
+  notify:
+    name: Notify on E2E Success
+    runs-on: ubuntu-latest
+    needs: e2e
+    if: success()
+    steps:
+      - name: Success notification
+        run: |
+          echo "✅ All end-to-end tests passed successfully!"
+          echo "The main branch is stable and ready for use." 
