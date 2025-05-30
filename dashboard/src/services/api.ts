@@ -38,8 +38,8 @@ export interface RequestStats {
   avg_proxy_overhead_ms: number;
   total_request_size: number;
   total_response_size: number;
-  status_codes: Record<number, number>;
-  methods: Record<string, number>;
+  status_codes?: Record<number, number>;
+  methods?: Record<string, number>;
 }
 
 class ApiService {
@@ -77,15 +77,20 @@ class ApiService {
         }
       }
 
+      // Add the special X-Fetchr-Destination header to tell the proxy where to forward the request
+      headers.set('X-Fetchr-Destination', config.url);
+
       const fetchOptions: RequestInit = {
         method: config.method,
         headers,
         body: config.body || undefined,
       };
 
-      // For now, we'll make direct requests through the browser
-      // In the future, this could be routed through a backend API that uses the proxy
-      const response = await fetch(config.url, fetchOptions);
+      // Send request to the proxy server, which will forward it to the destination
+      // specified in the X-Fetchr-Destination header
+      const proxyUrl = `http://${this.proxyHost}:${this.proxyPort}`;
+      
+      const response = await fetch(proxyUrl, fetchOptions);
       
       const responseBody = await response.text();
       const endTime = Date.now();

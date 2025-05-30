@@ -35,7 +35,6 @@ export function RequestBuilder() {
     setResponse,
     setLoading,
     setError,
-    addToHistory,
     reset,
   } = useRequestStore();
 
@@ -67,17 +66,10 @@ export function RequestBuilder() {
 
       const apiResponse = await apiService.makeRequest(requestConfig);
       setResponse(apiResponse);
-      addToHistory(requestConfig, apiResponse);
     } catch (err: unknown) {
       const error = err as ApiError;
       const errorMessage = error?.body || error?.message || 'Request failed';
       setError(errorMessage);
-      addToHistory({
-        method,
-        url: url.trim(),
-        headers: {},
-        body: body.trim() || undefined,
-      }, undefined, errorMessage);
     } finally {
       setLoading(false);
     }

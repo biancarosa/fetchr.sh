@@ -184,7 +184,7 @@ dev-safe: check
 # Start only the backend in development mode
 serve-dev:
 	@echo "Starting backend in development mode on port 8080..."
-	@$(GO) run ./cmd/fetchr serve --port 8080 --log-level debug
+	@$(GO) run ./cmd/fetchr serve --port 8080 --log-level debug --admin-port 8081
 
 # Start only the dashboard in development mode
 dashboard-dev:

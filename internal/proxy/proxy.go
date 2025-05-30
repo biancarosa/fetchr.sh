@@ -145,6 +145,18 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // handleHTTP handles regular HTTP requests
 func (p *Proxy) handleHTTP(w http.ResponseWriter, r *http.Request) {
+	// Always add CORS headers to allow any web application to use the proxy
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-Fetchr-Destination, Authorization, Accept, Origin, X-Requested-With")
+	w.Header().Set("Access-Control-Expose-Headers", "*")
+
+	// Handle preflight requests
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
 	// Start timing
 	proxyStartTime := time.Now()
 
@@ -167,14 +179,32 @@ func (p *Proxy) handleHTTP(w http.ResponseWriter, r *http.Request) {
 		Success:        false, // Will be updated based on outcome
 	}
 
-	// Create a new request to the target server
-	targetURL, err := url.Parse(r.URL.String())
-	if err != nil {
-		record.Error = "Invalid URL"
-		record.ProxyEndTime = time.Now()
-		p.history.AddRecord(record)
-		http.Error(w, "Invalid URL", http.StatusBadRequest)
-		return
+	// Check for X-Fetchr-Destination header (for dashboard requests)
+	var targetURL *url.URL
+	var err error
+
+	if destinationHeader := r.Header.Get("X-Fetchr-Destination"); destinationHeader != "" {
+		// Dashboard request - use the destination header as the target URL
+		targetURL, err = url.Parse(destinationHeader)
+		if err != nil {
+			record.Error = "Invalid X-Fetchr-Destination URL"
+			record.ProxyEndTime = time.Now()
+			p.history.AddRecord(record)
+			http.Error(w, "Invalid X-Fetchr-Destination URL", http.StatusBadRequest)
+			return
+		}
+		// Update the record URL to reflect the actual destination
+		record.URL = destinationHeader
+	} else {
+		// Regular proxy request - use the request URL
+		targetURL, err = url.Parse(r.URL.String())
+		if err != nil {
+			record.Error = "Invalid URL"
+			record.ProxyEndTime = time.Now()
+			p.history.AddRecord(record)
+			http.Error(w, "Invalid URL", http.StatusBadRequest)
+			return
+		}
 	}
 
 	// Create the proxied request
@@ -189,6 +219,10 @@ func (p *Proxy) handleHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// Copy headers from original request
 	for key, values := range r.Header {
+		// Skip the X-Fetchr-Destination header - it's only for internal proxy routing
+		if key == "X-Fetchr-Destination" {
+			continue
+		}
 		for _, value := range values {
 			proxyReq.Header.Add(key, value)
 		}
@@ -231,8 +265,21 @@ func (p *Proxy) handleHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// Copy response headers
 	for key, values := range resp.Header {
+		// Override any CORS headers we set earlier with the upstream response headers
+		// This preserves the destination API's intended CORS policy
 		for _, value := range values {
-			w.Header().Add(key, value)
+			if key == "Access-Control-Allow-Origin" ||
+				key == "Access-Control-Allow-Methods" ||
+				key == "Access-Control-Allow-Headers" ||
+				key == "Access-Control-Expose-Headers" ||
+				key == "Access-Control-Allow-Credentials" ||
+				key == "Access-Control-Max-Age" {
+				// For CORS headers, replace (not add) to avoid duplicates
+				w.Header().Set(key, value)
+			} else {
+				// For other headers, add normally
+				w.Header().Add(key, value)
+			}
 		}
 	}
 
