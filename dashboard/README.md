@@ -20,12 +20,14 @@ A modern, sleek web dashboard for the fetchr.sh HTTP proxy tool. Built with Next
 - **Copy to Clipboard**: One-click copy functionality for response data
 
 ### 📚 Request History
-- **Persistent Storage**: Request history saved in browser localStorage
-- **Quick Replay**: Click any history item to reload the request
-- **Status Tracking**: Visual indicators for successful, failed, and error requests
-- **Time Stamps**: Relative time display (e.g., "2 minutes ago")
-- **URL Truncation**: Smart URL truncation with tooltips for full URLs
-- **External Links**: Quick access to open URLs in new tabs
+- **View Proxy Requests**: All requests that pass through the proxy appear in the left sidebar
+- **Real-time Updates**: History automatically refreshes with new proxy requests
+- **Replay Requests**: Click any history item to load it into the request builder
+- **Clear History**: Use the trash icon to clear all proxy request history
+- **External Links**: Click the external link icon to open URLs in new tabs
+- **Timing Details**: View detailed proxy overhead and upstream latency metrics
+
+**Note**: Only requests that pass through the fetchr.sh proxy server are tracked in the history. Requests made directly from the dashboard are not stored in the history.
 
 ### 🔧 Proxy Integration
 - **Health Monitoring**: Real-time proxy server status monitoring
@@ -81,10 +83,14 @@ npm start
 
 ### Request History
 
-- **View History**: All requests appear in the left sidebar
+- **View Proxy Requests**: All requests that pass through the proxy appear in the left sidebar
+- **Real-time Updates**: History automatically refreshes with new proxy requests
 - **Replay Requests**: Click any history item to load it into the request builder
-- **Clear History**: Use the trash icon to clear all history
+- **Clear History**: Use the trash icon to clear all proxy request history
 - **External Links**: Click the external link icon to open URLs in new tabs
+- **Timing Details**: View detailed proxy overhead and upstream latency metrics
+
+**Note**: Only requests that pass through the fetchr.sh proxy server are tracked in the history. Requests made directly from the dashboard are not stored in the history.
 
 ### Proxy Status
 

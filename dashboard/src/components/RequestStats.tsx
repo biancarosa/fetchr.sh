@@ -150,7 +150,7 @@ export function RequestStats({ className }: RequestStatsProps) {
             </div>
 
             {/* Top status codes */}
-            {Object.keys(stats.status_codes).length > 0 && (
+            {stats.status_codes && Object.keys(stats.status_codes).length > 0 && (
               <div>
                 <div className="text-xs text-muted-foreground mb-2">Status Codes</div>
                 <div className="flex flex-wrap gap-1">
@@ -167,7 +167,7 @@ export function RequestStats({ className }: RequestStatsProps) {
             )}
 
             {/* Top methods */}
-            {Object.keys(stats.methods).length > 0 && (
+            {stats.methods && Object.keys(stats.methods).length > 0 && (
               <div>
                 <div className="text-xs text-muted-foreground mb-2">Methods</div>
                 <div className="flex flex-wrap gap-1">
