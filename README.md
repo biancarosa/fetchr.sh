@@ -146,8 +146,13 @@ curl -X POST http://localhost:8081/requests/clear
 ### Development Commands
 
 ```bash
-# Install Go development tools
+# Install all development tools (Go, Node.js, git-cliff)
 make install
+
+# Install specific toolsets
+make install-backend           # Go tools only
+make install-dashboard         # Node.js dependencies only
+make install-changelog-tools   # git-cliff and conventional commit tools
 
 # Run tests
 make test
@@ -164,6 +169,52 @@ make dev
 make build
 make build-dashboard
 ```
+
+### Conventional Commits and Changelog
+
+This project uses [Conventional Commits](https://www.conventionalcommits.org/) for structured commit messages and [git-cliff](https://git-cliff.org/) for automated changelog generation.
+
+#### Quick Start with Conventional Commits
+
+```bash
+# Install tools
+make install-changelog-tools
+
+# Initialize changelog configuration
+make changelog-init
+
+# Make conventional commits
+make commit-feat msg="add user authentication"
+make commit-fix msg="resolve proxy timeout issue"
+make commit-docs msg="update API documentation"
+
+# Create releases
+make release-patch  # 1.0.0 -> 1.0.1 (bug fixes)
+make release-minor  # 1.0.0 -> 1.1.0 (new features)
+make release-major  # 1.0.0 -> 2.0.0 (breaking changes)
+```
+
+#### Available Commit Types
+
+- `feat` - New features
+- `fix` - Bug fixes
+- `docs` - Documentation changes
+- `style` - Code formatting
+- `refactor` - Code restructuring
+- `test` - Test additions/modifications
+- `chore` - Maintenance tasks
+- `perf` - Performance improvements
+- `security` - Security fixes
+
+#### Changelog Commands
+
+```bash
+make changelog              # Generate full changelog
+make changelog-update       # Update with latest commits
+make check-conventional-commits  # Validate commit format
+```
+
+For detailed information, see [docs/CHANGELOG_GUIDE.md](docs/CHANGELOG_GUIDE.md).
 
 ### Project Structure
 
