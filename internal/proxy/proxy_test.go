@@ -76,12 +76,12 @@ func TestProxy(t *testing.T) {
 	}
 }
 
-func TestProxyConfig(t *testing.T) {
+func TestNewProxy(t *testing.T) {
 	config := &Config{
-		Port:     9090,
-		LogLevel: "debug",
-		Metrics:  true,
-		Health:   true,
+		Port:        9090,
+		AdminPort:   9091,
+		LogLevel:    "debug",
+		HistorySize: 500,
 	}
 
 	proxy := New(config)
@@ -94,11 +94,15 @@ func TestProxyConfig(t *testing.T) {
 		t.Errorf("Expected log level 'debug', got %s", proxy.config.LogLevel)
 	}
 
-	if !proxy.config.Metrics {
-		t.Error("Expected metrics to be enabled")
+	if proxy.config.AdminPort != 9091 {
+		t.Errorf("Expected admin port 9091, got %d", proxy.config.AdminPort)
 	}
 
-	if !proxy.config.Health {
-		t.Error("Expected health checks to be enabled")
+	if proxy.config.HistorySize != 500 {
+		t.Errorf("Expected history size 500, got %d", proxy.config.HistorySize)
+	}
+
+	if proxy.history == nil {
+		t.Error("Expected history to be initialized")
 	}
 }

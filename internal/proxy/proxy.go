@@ -1,7 +1,11 @@
 package proxy
 
 import (
+	"bytes"
 	"context"
+	"crypto/rand"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -13,9 +17,10 @@ import (
 
 // Config holds the proxy configuration
 type Config struct {
-	Port      int
-	AdminPort int
-	LogLevel  string
+	Port        int
+	AdminPort   int
+	LogLevel    string
+	HistorySize int // Maximum number of requests to keep in history
 }
 
 // Proxy represents the HTTP proxy server
@@ -24,15 +29,23 @@ type Proxy struct {
 	server      *http.Server
 	adminServer *http.Server
 	httpClient  *http.Client
+	history     *RequestHistory
 }
 
 // New creates a new Proxy instance
 func New(config *Config) *Proxy {
+	// Set default history size if not specified
+	historySize := config.HistorySize
+	if historySize <= 0 {
+		historySize = 1000 // Default to keeping 1000 requests
+	}
+
 	proxy := &Proxy{
 		config: config,
 		httpClient: &http.Client{
 			Timeout: 30 * time.Second,
 		},
+		history: NewRequestHistory(historySize),
 	}
 
 	// Initialize the main HTTP proxy server
@@ -48,6 +61,11 @@ func New(config *Config) *Proxy {
 		// Always enable both health and metrics when admin port is specified
 		adminMux.HandleFunc("/healthz", proxy.handleHealth)
 		adminMux.HandleFunc("/metrics", proxy.handleMetrics)
+
+		// Add request history endpoints
+		adminMux.HandleFunc("/requests", proxy.handleRequestHistory)
+		adminMux.HandleFunc("/requests/stats", proxy.handleRequestStats)
+		adminMux.HandleFunc("/requests/clear", proxy.handleClearHistory)
 
 		proxy.adminServer = &http.Server{
 			Addr:    fmt.Sprintf(":%d", config.AdminPort),
@@ -77,16 +95,44 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // handleHTTP handles regular HTTP requests
 func (p *Proxy) handleHTTP(w http.ResponseWriter, r *http.Request) {
+	// Start timing
+	proxyStartTime := time.Now()
+
+	// Generate request ID
+	requestID := generateID()
+
+	// Capture request data
+	requestBody, requestSize, bodyReader := captureRequestBody(r)
+
+	// Create request record
+	record := RequestRecord{
+		ID:             requestID,
+		Timestamp:      proxyStartTime,
+		Method:         r.Method,
+		URL:            r.URL.String(),
+		RequestHeaders: convertHeaders(r.Header),
+		RequestBody:    requestBody,
+		RequestSize:    requestSize,
+		ProxyStartTime: proxyStartTime,
+		Success:        false, // Will be updated based on outcome
+	}
+
 	// Create a new request to the target server
 	targetURL, err := url.Parse(r.URL.String())
 	if err != nil {
+		record.Error = "Invalid URL"
+		record.ProxyEndTime = time.Now()
+		p.history.AddRecord(record)
 		http.Error(w, "Invalid URL", http.StatusBadRequest)
 		return
 	}
 
 	// Create the proxied request
-	proxyReq, err := http.NewRequest(r.Method, targetURL.String(), r.Body)
+	proxyReq, err := http.NewRequest(r.Method, targetURL.String(), bodyReader)
 	if err != nil {
+		record.Error = "Failed to create proxy request"
+		record.ProxyEndTime = time.Now()
+		p.history.AddRecord(record)
 		http.Error(w, "Failed to create proxy request", http.StatusInternalServerError)
 		return
 	}
@@ -98,9 +144,15 @@ func (p *Proxy) handleHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Make the request to the target server
+	// Make the request to the target server (start upstream timing)
+	record.UpstreamStartTime = time.Now()
 	resp, err := p.httpClient.Do(proxyReq)
+	record.UpstreamEndTime = time.Now()
+
 	if err != nil {
+		record.Error = "Failed to proxy request"
+		record.ProxyEndTime = time.Now()
+		p.history.AddRecord(record)
 		http.Error(w, "Failed to proxy request", http.StatusBadGateway)
 		return
 	}
@@ -109,6 +161,23 @@ func (p *Proxy) handleHTTP(w http.ResponseWriter, r *http.Request) {
 			log.Printf("Error closing response body: %v", closeErr)
 		}
 	}()
+
+	// Capture response data
+	responseBody, responseSize, err := captureResponseBody(resp)
+	if err != nil {
+		record.Error = "Failed to read response body"
+		record.ProxyEndTime = time.Now()
+		p.history.AddRecord(record)
+		http.Error(w, "Failed to read response body", http.StatusInternalServerError)
+		return
+	}
+
+	// Update record with response data
+	record.ResponseStatus = resp.StatusCode
+	record.ResponseHeaders = convertHeaders(resp.Header)
+	record.ResponseBody = responseBody
+	record.ResponseSize = responseSize
+	record.Success = true
 
 	// Copy response headers
 	for key, values := range resp.Header {
@@ -123,11 +192,18 @@ func (p *Proxy) handleHTTP(w http.ResponseWriter, r *http.Request) {
 	// Copy response body
 	if _, err := io.Copy(w, resp.Body); err != nil {
 		log.Printf("Error copying response body: %v", err)
+		record.Error = "Failed to copy response body"
+		record.Success = false
 	}
+
+	// End timing and record
+	record.ProxyEndTime = time.Now()
+	p.history.AddRecord(record)
 
 	// Debug logging for completed requests
 	if p.config.LogLevel == "debug" {
-		log.Printf("HTTP request completed: %s %s -> %d", r.Method, r.URL.String(), resp.StatusCode)
+		log.Printf("HTTP request completed: %s %s -> %d (%dms)",
+			r.Method, r.URL.String(), resp.StatusCode, record.TotalDurationMs)
 	}
 }
 
@@ -226,6 +302,96 @@ fetchr_proxy_status 1
 	}
 }
 
+// handleRequestHistory handles request history requests
+func (p *Proxy) handleRequestHistory(w http.ResponseWriter, r *http.Request) {
+	// Add CORS headers
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+	// Handle preflight requests
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	data, err := p.history.GetRecordsJSON()
+	if err != nil {
+		http.Error(w, "Failed to get request history", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	if _, err := w.Write(data); err != nil {
+		log.Printf("Error writing request history response: %v", err)
+	}
+}
+
+// handleRequestStats handles request stats requests
+func (p *Proxy) handleRequestStats(w http.ResponseWriter, r *http.Request) {
+	// Add CORS headers
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+	// Handle preflight requests
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	stats := p.history.GetStats()
+	data, err := json.Marshal(stats)
+	if err != nil {
+		http.Error(w, "Failed to get request stats", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	if _, err := w.Write(data); err != nil {
+		log.Printf("Error writing request stats response: %v", err)
+	}
+}
+
+// handleClearHistory handles request history clearing requests
+func (p *Proxy) handleClearHistory(w http.ResponseWriter, r *http.Request) {
+	// Add CORS headers
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+	// Handle preflight requests
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	p.history.Clear()
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	if _, err := w.Write([]byte(`{"success": true, "message": "Request history cleared"}`)); err != nil {
+		log.Printf("Error writing clear history response: %v", err)
+	}
+}
+
 // Start starts the proxy server and admin server (if configured)
 func (p *Proxy) Start() error {
 	if p.server == nil {
@@ -270,4 +436,72 @@ func (p *Proxy) Stop() error {
 	}
 
 	return nil
+}
+
+// generateID generates a random ID for request tracking
+func generateID() string {
+	bytes := make([]byte, 16)
+	if _, err := rand.Read(bytes); err != nil {
+		// Fallback to timestamp-based ID if random fails
+		return fmt.Sprintf("req_%d", time.Now().UnixNano())
+	}
+	return hex.EncodeToString(bytes)
+}
+
+// captureRequestBody safely reads and captures the request body
+func captureRequestBody(r *http.Request) (string, int64, io.Reader) {
+	if r.Body == nil {
+		return "", 0, nil
+	}
+
+	// Read the body
+	bodyBytes, err := io.ReadAll(r.Body)
+	if err != nil {
+		return "", 0, r.Body
+	}
+
+	// Close the original body
+	if err := r.Body.Close(); err != nil {
+		log.Printf("Error closing request body: %v", err)
+	}
+
+	// Create new readers for the proxy and for capture
+	r.Body = io.NopCloser(bytes.NewReader(bodyBytes))
+
+	// Return captured data and size
+	return string(bodyBytes), int64(len(bodyBytes)), io.NopCloser(bytes.NewReader(bodyBytes))
+}
+
+// captureResponseBody safely reads and captures the response body
+func captureResponseBody(resp *http.Response) (string, int64, error) {
+	if resp.Body == nil {
+		return "", 0, nil
+	}
+
+	// Read the body
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", 0, err
+	}
+
+	// Close the original body
+	if err := resp.Body.Close(); err != nil {
+		log.Printf("Error closing response body: %v", err)
+	}
+
+	// Replace with a new reader for downstream consumption
+	resp.Body = io.NopCloser(bytes.NewReader(bodyBytes))
+
+	return string(bodyBytes), int64(len(bodyBytes)), nil
+}
+
+// convertHeaders converts http.Header to map[string]string for JSON serialization
+func convertHeaders(headers http.Header) map[string]string {
+	result := make(map[string]string)
+	for key, values := range headers {
+		if len(values) > 0 {
+			result[key] = values[0] // Take first value if multiple
+		}
+	}
+	return result
 }
