@@ -99,7 +99,7 @@ export function Sidebar() {
           <CardTitle className="flex items-center justify-between text-sm">
             <div className="flex items-center gap-1">
               <History className="h-4 w-4" />
-              <span>Proxy Requests</span>
+              <span>Requests History</span>
             </div>
             <div className="flex items-center gap-1">
               <Badge variant="outline" className="text-xs h-5 px-1.5">
@@ -118,7 +118,7 @@ export function Sidebar() {
                       <RefreshCw className={`h-3.5 w-3.5 ${isLoadingBackend ? 'animate-spin' : ''}`} />
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent>Refresh proxy history</TooltipContent>
+                  <TooltipContent>Refresh requests history</TooltipContent>
                 </Tooltip>
               </TooltipProvider>
             </div>
@@ -136,7 +136,7 @@ export function Sidebar() {
                 {backendHistory.length === 0 ? (
                   <div className="p-4 text-center text-muted-foreground">
                     <Server className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                    <p className="text-sm">No proxy requests yet</p>
+                    <p className="text-sm">No requests yet</p>
                     <p className="text-xs mt-1">Requests through the proxy will appear here</p>
                   </div>
                 ) : (

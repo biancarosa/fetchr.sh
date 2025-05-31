@@ -1,14 +1,18 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
-import { Globe, Settings, Info, Zap } from 'lucide-react';
+import { Globe, Settings, Info, Zap, Home, Server, BarChart3 } from 'lucide-react';
 import { apiService } from '../services/api';
+import { cn } from '../lib/utils';
 
 export function Header() {
   const [proxyStatus, setProxyStatus] = useState<'checking' | 'online' | 'offline'>('checking');
+  const pathname = usePathname();
 
   useEffect(() => {
     const checkProxyStatus = async () => {
@@ -52,10 +56,31 @@ export function Header() {
     }
   };
 
+  const navItems = [
+    {
+      href: '/',
+      label: 'Request Builder',
+      icon: Home,
+      isActive: pathname === '/'
+    },
+    {
+      href: '/requests-history',
+      label: 'Requests History',
+      icon: Server,
+      isActive: pathname === '/requests-history'
+    },
+    {
+      href: '/statistics',
+      label: 'Statistics',
+      icon: BarChart3,
+      isActive: pathname === '/statistics'
+    }
+  ];
+
   return (
     <header className="border-b bg-background">
       <div className="flex items-center justify-between h-16 px-6">
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-6">
           <div className="flex items-center gap-2">
             <div className="flex items-center justify-center w-8 h-8 bg-primary rounded-lg">
               <Zap className="h-5 w-5 text-primary-foreground" />
@@ -65,6 +90,25 @@ export function Header() {
               <p className="text-xs text-muted-foreground">HTTP Proxy Dashboard</p>
             </div>
           </div>
+
+          {/* Navigation */}
+          <nav className="flex items-center gap-1">
+            {navItems.map((item) => (
+              <Link key={item.href} href={item.href}>
+                <Button
+                  variant={item.isActive ? "default" : "ghost"}
+                  size="sm"
+                  className={cn(
+                    "flex items-center gap-2",
+                    item.isActive && "bg-primary text-primary-foreground"
+                  )}
+                >
+                  <item.icon className="h-4 w-4" />
+                  {item.label}
+                </Button>
+              </Link>
+            ))}
+          </nav>
           
           <div className="flex items-center gap-2">
             {getStatusBadge()}
