@@ -70,10 +70,10 @@ export function Header() {
       isActive: pathname === '/requests-history'
     },
     {
-      href: '/statistics',
-      label: 'Statistics',
+      href: '/requests-statistics',
+      label: 'Requests Statistics',
       icon: BarChart3,
-      isActive: pathname === '/statistics'
+      isActive: pathname === '/requests-statistics'
     }
   ];
 

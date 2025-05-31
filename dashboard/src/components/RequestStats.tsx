@@ -45,6 +45,7 @@ export function RequestStats({ className }: RequestStatsProps) {
 
   const formatBytes = (bytes: number): string => {
     if (bytes === 0) return '0 B';
+    if (isNaN(bytes) || !isFinite(bytes)) return '0 B';
     const k = 1024;
     const sizes = ['B', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
@@ -53,7 +54,13 @@ export function RequestStats({ className }: RequestStatsProps) {
 
   const getSuccessRate = (): number => {
     if (!stats || stats.total_requests === 0) return 0;
-    return (stats.success_count / stats.total_requests) * 100;
+    const rate = (stats.success_count / stats.total_requests) * 100;
+    return isNaN(rate) ? 0 : rate;
+  };
+
+  const safeFormatDuration = (microseconds: number): string => {
+    if (isNaN(microseconds) || !isFinite(microseconds)) return '0ms';
+    return (microseconds / 1000).toFixed(1) + 'ms';
   };
 
   if (!stats && !isLoading && !error) return null;
@@ -133,15 +140,15 @@ export function RequestStats({ className }: RequestStatsProps) {
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <span className="text-xs text-muted-foreground">Avg Duration</span>
-                <span className="text-xs font-medium">{(stats.avg_duration_us / 1000).toFixed(1)}ms</span>
+                <span className="text-xs font-medium">{safeFormatDuration(stats.avg_duration_us)}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-xs text-muted-foreground">Avg Upstream</span>
-                <span className="text-xs font-medium">{(stats.avg_upstream_latency_us / 1000).toFixed(1)}ms</span>
+                <span className="text-xs font-medium">{safeFormatDuration(stats.avg_upstream_latency_us)}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-xs text-muted-foreground">Avg Proxy</span>
-                <span className="text-xs font-medium">{(stats.avg_proxy_overhead_us / 1000).toFixed(1)}ms</span>
+                <span className="text-xs font-medium">{safeFormatDuration(stats.avg_proxy_overhead_us)}</span>
               </div>
             </div>
 

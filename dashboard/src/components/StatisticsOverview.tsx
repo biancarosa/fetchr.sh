@@ -69,7 +69,42 @@ export function StatisticsOverview() {
 
   const getSuccessRate = (): number => {
     if (!stats || stats.total_requests === 0) return 0;
-    return (stats.success_count / stats.total_requests) * 100;
+    const rate = (stats.success_count / stats.total_requests) * 100;
+    return isNaN(rate) ? 0 : rate;
+  };
+
+  const getErrorRate = (): number => {
+    if (!stats || stats.total_requests === 0) return 0;
+    const rate = (stats.error_count / stats.total_requests) * 100;
+    return isNaN(rate) ? 0 : rate;
+  };
+
+  const getProxyOverheadPercentage = (): number => {
+    if (!stats || stats.avg_duration_us === 0) return 0;
+    const percentage = (stats.avg_proxy_overhead_us / stats.avg_duration_us) * 100;
+    return isNaN(percentage) ? 0 : percentage;
+  };
+
+  const getStatusCodePercentage = (count: number): number => {
+    if (!stats || stats.total_requests === 0) return 0;
+    const percentage = (count / stats.total_requests) * 100;
+    return isNaN(percentage) ? 0 : percentage;
+  };
+
+  const getMethodPercentage = (count: number): number => {
+    if (!stats || stats.total_requests === 0) return 0;
+    const percentage = (count / stats.total_requests) * 100;
+    return isNaN(percentage) ? 0 : percentage;
+  };
+
+  const safeFormatDuration = (microseconds: number): string => {
+    if (isNaN(microseconds) || !isFinite(microseconds)) return '0ms';
+    return formatDuration(microseconds);
+  };
+
+  const safeFormatBytes = (bytes: number): string => {
+    if (isNaN(bytes) || !isFinite(bytes)) return '0 B';
+    return formatBytes(bytes);
   };
 
   const getMethodColor = (method: string) => {
@@ -211,7 +246,7 @@ export function StatisticsOverview() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-muted-foreground">Avg Duration</p>
-                    <p className="text-3xl font-bold">{formatDuration(stats.avg_duration_us)}</p>
+                    <p className="text-3xl font-bold">{safeFormatDuration(stats.avg_duration_us)}</p>
                   </div>
                   <Clock className="h-8 w-8 text-orange-500" />
                 </div>
@@ -224,7 +259,7 @@ export function StatisticsOverview() {
                   <div>
                     <p className="text-sm font-medium text-muted-foreground">Total Data</p>
                     <p className="text-3xl font-bold">
-                      {formatBytes(stats.total_request_size + stats.total_response_size)}
+                      {safeFormatBytes(stats.total_request_size + stats.total_response_size)}
                     </p>
                   </div>
                   <Database className="h-8 w-8 text-purple-500" />
@@ -265,7 +300,7 @@ export function StatisticsOverview() {
                       <div>
                         <p className="font-medium">Failed Requests</p>
                         <p className="text-sm text-muted-foreground">
-                          {((stats.error_count / stats.total_requests) * 100).toFixed(1)}% error rate
+                          {getErrorRate().toFixed(1)}% error rate
                         </p>
                       </div>
                     </div>
@@ -288,24 +323,24 @@ export function StatisticsOverview() {
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium">Average Total Duration</span>
-                    <span className="font-mono text-sm">{formatDuration(stats.avg_duration_us)}</span>
+                    <span className="font-mono text-sm">{safeFormatDuration(stats.avg_duration_us)}</span>
                   </div>
                   
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium">Average Upstream Latency</span>
-                    <span className="font-mono text-sm">{formatDuration(stats.avg_upstream_latency_us)}</span>
+                    <span className="font-mono text-sm">{safeFormatDuration(stats.avg_upstream_latency_us)}</span>
                   </div>
                   
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium">Average Proxy Overhead</span>
-                    <span className="font-mono text-sm">{formatDuration(stats.avg_proxy_overhead_us)}</span>
+                    <span className="font-mono text-sm">{safeFormatDuration(stats.avg_proxy_overhead_us)}</span>
                   </div>
 
                   <div className="pt-2 border-t">
                     <div className="flex items-center justify-between text-xs text-muted-foreground">
                       <span>Proxy Overhead Percentage</span>
                       <span>
-                        {((stats.avg_proxy_overhead_us / stats.avg_duration_us) * 100).toFixed(1)}%
+                        {getProxyOverheadPercentage().toFixed(1)}%
                       </span>
                     </div>
                   </div>
@@ -326,18 +361,18 @@ export function StatisticsOverview() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="text-center p-4 bg-blue-50 rounded-lg">
                   <p className="text-sm font-medium text-muted-foreground">Total Request Data</p>
-                  <p className="text-2xl font-bold text-blue-600">{formatBytes(stats.total_request_size)}</p>
+                  <p className="text-2xl font-bold text-blue-600">{safeFormatBytes(stats.total_request_size)}</p>
                 </div>
                 
                 <div className="text-center p-4 bg-green-50 rounded-lg">
                   <p className="text-sm font-medium text-muted-foreground">Total Response Data</p>
-                  <p className="text-2xl font-bold text-green-600">{formatBytes(stats.total_response_size)}</p>
+                  <p className="text-2xl font-bold text-green-600">{safeFormatBytes(stats.total_response_size)}</p>
                 </div>
                 
                 <div className="text-center p-4 bg-purple-50 rounded-lg">
                   <p className="text-sm font-medium text-muted-foreground">Combined Total</p>
                   <p className="text-2xl font-bold text-purple-600">
-                    {formatBytes(stats.total_request_size + stats.total_response_size)}
+                    {safeFormatBytes(stats.total_request_size + stats.total_response_size)}
                   </p>
                 </div>
               </div>
@@ -369,7 +404,7 @@ export function StatisticsOverview() {
                           <div className="text-right">
                             <span className="font-mono text-sm">{count}</span>
                             <span className="text-xs text-muted-foreground ml-2">
-                              ({((count / stats.total_requests) * 100).toFixed(1)}%)
+                              ({getStatusCodePercentage(count).toFixed(1)}%)
                             </span>
                           </div>
                         </div>
@@ -402,7 +437,7 @@ export function StatisticsOverview() {
                           <div className="text-right">
                             <span className="font-mono text-sm">{count}</span>
                             <span className="text-xs text-muted-foreground ml-2">
-                              ({((count / stats.total_requests) * 100).toFixed(1)}%)
+                              ({getMethodPercentage(count).toFixed(1)}%)
                             </span>
                           </div>
                         </div>

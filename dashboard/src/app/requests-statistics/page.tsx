@@ -4,7 +4,7 @@ import { Header } from '../../components/Header';
 import { StatisticsOverview } from '../../components/StatisticsOverview';
 import { RefreshProvider } from '../../hooks/useRefreshContext';
 
-export default function StatisticsPage() {
+export default function RequestsStatisticsPage() {
   return (
     <RefreshProvider>
       <div className="h-screen flex flex-col">
