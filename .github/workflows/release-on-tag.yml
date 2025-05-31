@@ -1,0 +1,250 @@
+name: Release on Tag
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to build release for (e.g., v1.0.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  release:
+    name: Build and Release
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          # For manual triggers, checkout the specified tag
+          ref: ${{ github.event.inputs.tag || github.ref }}
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+          check-latest: true
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: dashboard/package-lock.json
+
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Get tag name
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "tag_name=${{ github.event.inputs.tag }}" >> $GITHUB_OUTPUT
+          else
+            echo "tag_name=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Validate tag format
+        run: |
+          TAG_NAME="${{ steps.tag.outputs.tag_name }}"
+          if [[ ! "$TAG_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9\.-]+)?$ ]]; then
+            echo "❌ Error: Tag '$TAG_NAME' does not match expected format (e.g., v1.0.0, v1.0.0-alpha.1)"
+            echo "Expected format: vX.Y.Z or vX.Y.Z-suffix"
+            exit 1
+          fi
+          echo "✅ Tag format is valid: $TAG_NAME"
+
+      - name: Check if release already exists
+        id: release_check
+        run: |
+          TAG_NAME="${{ steps.tag.outputs.tag_name }}"
+          if gh release view "$TAG_NAME" >/dev/null 2>&1; then
+            echo "release_exists=true" >> $GITHUB_OUTPUT
+            echo "⚠️  Release for tag $TAG_NAME already exists"
+          else
+            echo "release_exists=false" >> $GITHUB_OUTPUT
+            echo "✅ No existing release found for tag $TAG_NAME"
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Confirm release recreation (manual trigger only)
+        if: github.event_name == 'workflow_dispatch' && steps.release_check.outputs.release_exists == 'true'
+        run: |
+          echo "🔄 This is a manual trigger for an existing release."
+          echo "The existing release will be updated with new artifacts."
+          echo "Proceeding with build..."
+
+      - name: Install dependencies
+        run: |
+          go mod download
+          cd dashboard && npm install --legacy-peer-deps
+
+      - name: Run tests
+        run: |
+          make test
+          make e2e
+
+      - name: Build dashboard
+        run: make build-dashboard
+
+      - name: Build application with embedded dashboard
+        run: make build-embedded
+
+      - name: Create symlinks for embedded dashboard files
+        run: |
+          # Create the embedded dashboard files in the expected location
+          mkdir -p internal/dashboard/out
+          cp -r dashboard/out/* internal/dashboard/out/
+
+      - name: Build release artifacts
+        run: |
+          # Build for multiple platforms
+          mkdir -p dist
+          
+          # Linux amd64
+          GOOS=linux GOARCH=amd64 go build -tags embed_dashboard -o dist/fetchr-linux-amd64 ./cmd/fetchr
+          
+          # Linux arm64
+          GOOS=linux GOARCH=arm64 go build -tags embed_dashboard -o dist/fetchr-linux-arm64 ./cmd/fetchr
+          
+          # macOS amd64
+          GOOS=darwin GOARCH=amd64 go build -tags embed_dashboard -o dist/fetchr-darwin-amd64 ./cmd/fetchr
+          
+          # macOS arm64 (Apple Silicon)
+          GOOS=darwin GOARCH=arm64 go build -tags embed_dashboard -o dist/fetchr-darwin-arm64 ./cmd/fetchr
+          
+          # Windows amd64
+          GOOS=windows GOARCH=amd64 go build -tags embed_dashboard -o dist/fetchr-windows-amd64.exe ./cmd/fetchr
+
+      - name: Generate checksums
+        run: |
+          cd dist
+          sha256sum * > checksums.txt
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          # Get the previous tag
+          PREV_TAG=$(git describe --tags --abbrev=0 ${{ steps.tag.outputs.tag_name }}^ 2>/dev/null || echo "")
+          
+          # Generate changelog
+          echo "## Release ${{ steps.tag.outputs.tag_name }}" > RELEASE_NOTES.md
+          echo "" >> RELEASE_NOTES.md
+          
+          # Add manual trigger info if applicable
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "> 🔄 **Manual Release**: This release was triggered manually and may contain updated artifacts." >> RELEASE_NOTES.md
+            echo "" >> RELEASE_NOTES.md
+          fi
+          
+          if [ -n "$PREV_TAG" ]; then
+            echo "### Changes since $PREV_TAG" >> RELEASE_NOTES.md
+            echo "" >> RELEASE_NOTES.md
+            
+            # Group commits by type
+            echo "#### ✨ Features" >> RELEASE_NOTES.md
+            git log --pretty=format:"- %s" $PREV_TAG..${{ steps.tag.outputs.tag_name }} | grep -i "^- feat" | sed 's/^- feat[:(]/- /' | sed 's/):/: /' || echo "- No new features" >> RELEASE_NOTES.md
+            echo "" >> RELEASE_NOTES.md
+            
+            echo "#### 🐛 Bug Fixes" >> RELEASE_NOTES.md
+            git log --pretty=format:"- %s" $PREV_TAG..${{ steps.tag.outputs.tag_name }} | grep -i "^- fix" | sed 's/^- fix[:(]/- /' | sed 's/):/: /' || echo "- No bug fixes" >> RELEASE_NOTES.md
+            echo "" >> RELEASE_NOTES.md
+            
+            echo "#### 🔧 Changes" >> RELEASE_NOTES.md
+            git log --pretty=format:"- %s" $PREV_TAG..${{ steps.tag.outputs.tag_name }} | grep -i "^- refactor\|^- perf\|^- chore" | sed 's/^- refactor[:(]/- /' | sed 's/^- perf[:(]/- /' | sed 's/^- chore[:(]/- /' | sed 's/):/: /' || echo "- No other changes" >> RELEASE_NOTES.md
+            echo "" >> RELEASE_NOTES.md
+            
+            echo "#### 🔒 Security" >> RELEASE_NOTES.md
+            git log --pretty=format:"- %s" $PREV_TAG..${{ steps.tag.outputs.tag_name }} | grep -i "^- security" | sed 's/^- security[:(]/- /' | sed 's/):/: /' || echo "- No security updates" >> RELEASE_NOTES.md
+            echo "" >> RELEASE_NOTES.md
+          else
+            echo "Initial release" >> RELEASE_NOTES.md
+            echo "" >> RELEASE_NOTES.md
+          fi
+          
+          echo "### 📦 Downloads" >> RELEASE_NOTES.md
+          echo "" >> RELEASE_NOTES.md
+          echo "Choose the appropriate binary for your platform:" >> RELEASE_NOTES.md
+          echo "" >> RELEASE_NOTES.md
+          echo "- **Linux (x64)**: \`fetchr-linux-amd64\`" >> RELEASE_NOTES.md
+          echo "- **Linux (ARM64)**: \`fetchr-linux-arm64\`" >> RELEASE_NOTES.md
+          echo "- **macOS (Intel)**: \`fetchr-darwin-amd64\`" >> RELEASE_NOTES.md
+          echo "- **macOS (Apple Silicon)**: \`fetchr-darwin-arm64\`" >> RELEASE_NOTES.md
+          echo "- **Windows (x64)**: \`fetchr-windows-amd64.exe\`" >> RELEASE_NOTES.md
+          echo "" >> RELEASE_NOTES.md
+          echo "### ✨ Features" >> RELEASE_NOTES.md
+          echo "" >> RELEASE_NOTES.md
+          echo "- 🚀 **Embedded Dashboard**: All releases now include the web dashboard embedded in the binary" >> RELEASE_NOTES.md
+          echo "- 📊 **Request History**: Comprehensive tracking of all proxied requests" >> RELEASE_NOTES.md
+          echo "- 🔧 **Admin API**: RESTful endpoints for health checks, metrics, and history" >> RELEASE_NOTES.md
+          echo "- ⚡ **Real-time Statistics**: Monitor proxy performance and request metrics" >> RELEASE_NOTES.md
+          echo "- 🔄 **Request Replay**: Load and replay requests from history" >> RELEASE_NOTES.md
+          echo "- ⏱️ **Timing Metrics**: Detailed breakdown of proxy overhead and upstream latency" >> RELEASE_NOTES.md
+          echo "" >> RELEASE_NOTES.md
+          echo "### 🚀 Quick Start" >> RELEASE_NOTES.md
+          echo "" >> RELEASE_NOTES.md
+          echo "\`\`\`bash" >> RELEASE_NOTES.md
+          echo "# Download and make executable" >> RELEASE_NOTES.md
+          echo "chmod +x fetchr-*" >> RELEASE_NOTES.md
+          echo "" >> RELEASE_NOTES.md
+          echo "# Start the proxy with embedded dashboard" >> RELEASE_NOTES.md
+          echo "./fetchr-* serve --admin-port 8081" >> RELEASE_NOTES.md
+          echo "" >> RELEASE_NOTES.md
+          echo "# Access the dashboard at http://localhost:3000" >> RELEASE_NOTES.md
+          echo "\`\`\`" >> RELEASE_NOTES.md
+
+      - name: Delete existing release (if manual trigger)
+        if: github.event_name == 'workflow_dispatch' && steps.release_check.outputs.release_exists == 'true'
+        run: |
+          echo "🗑️  Deleting existing release to recreate with updated artifacts..."
+          gh release delete "${{ steps.tag.outputs.tag_name }}" --yes
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.tag.outputs.tag_name }}
+          name: "Release ${{ steps.tag.outputs.tag_name }}"
+          body_path: RELEASE_NOTES.md
+          draft: false
+          prerelease: false
+          files: |
+            dist/*
+          generate_release_notes: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        run: |
+          # Create a simple Dockerfile for the release
+          cat > Dockerfile << 'EOF'
+          FROM alpine:latest
+          RUN apk --no-cache add ca-certificates
+          WORKDIR /root/
+          COPY dist/fetchr-linux-amd64 /usr/local/bin/fetchr
+          RUN chmod +x /usr/local/bin/fetchr
+          EXPOSE 8080 3000 8081
+          CMD ["fetchr", "serve", "--admin-port", "8081"]
+          EOF
+          
+          # Note: Docker build/push would require additional setup
+          # For now, just prepare the Dockerfile
+          echo "Dockerfile created for Docker image build" 

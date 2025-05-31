@@ -1,3 +1,6 @@
 coverage.txt
 coverage-e2e.txt
 fetchr
+
+# Embedded dashboard files (generated during build)
+internal/dashboard/out/

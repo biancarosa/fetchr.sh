@@ -13,6 +13,8 @@ import (
 	"net/http"
 	"net/url"
 	"time"
+
+	"github.com/biancarosa/fetchr.sh/internal/dashboard"
 )
 
 // Config holds the proxy configuration
@@ -81,40 +83,13 @@ func New(config *Config) *Proxy {
 	if config.Dashboard && config.DashboardPort > 0 {
 		dashboardMux := http.NewServeMux()
 
-		// Serve static files from dashboard directory
+		// Serve static files from dashboard directory or embedded dashboard
 		if config.DashboardDir != "" {
 			fileServer := http.FileServer(http.Dir(config.DashboardDir))
 			dashboardMux.Handle("/", fileServer)
 		} else {
-			// Fallback - serve a simple message if no dashboard directory specified
-			dashboardMux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-				w.Header().Set("Content-Type", "text/html")
-				w.WriteHeader(http.StatusOK)
-				html := `<!DOCTYPE html>
-<html>
-<head>
-    <title>fetchr.sh Dashboard</title>
-    <style>
-        body { font-family: Arial, sans-serif; text-align: center; margin-top: 50px; }
-        .container { max-width: 600px; margin: 0 auto; }
-        .error { color: #e74c3c; }
-        .info { color: #3498db; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>fetchr.sh Dashboard</h1>
-        <p class="error">Dashboard files not found</p>
-        <p class="info">To use the dashboard, build it first:</p>
-        <pre>cd dashboard && npm run build</pre>
-        <p class="info">Then specify the dashboard directory with --dashboard-dir flag</p>
-    </div>
-</body>
-</html>`
-				if _, err := w.Write([]byte(html)); err != nil {
-					log.Printf("Error writing dashboard fallback response: %v", err)
-				}
-			})
+			// Use embedded dashboard
+			dashboardMux.Handle("/", dashboard.Handler())
 		}
 
 		proxy.dashboardServer = &http.Server{

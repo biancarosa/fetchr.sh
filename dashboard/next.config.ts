@@ -1,6 +1,11 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Enable static export for embedding
+  output: 'export',
+  trailingSlash: true,
+  distDir: 'out',
+  
   // Disable all caching to ensure fresh data
   experimental: {
     staleTimes: {
@@ -30,6 +35,11 @@ const nextConfig: NextConfig = {
         ],
       },
     ];
+  },
+  
+  // Configure static export
+  images: {
+    unoptimized: true,
   },
 };
 

@@ -75,7 +75,7 @@ export function ProxyRequestsTable() {
 
   // Filter and sort requests
   const filteredAndSortedRequests = useMemo(() => {
-    let filtered = requests.filter(request => {
+    const filtered = requests.filter(request => {
       const matchesSearch = searchTerm === '' || 
         request.url.toLowerCase().includes(searchTerm.toLowerCase()) ||
         request.method.toLowerCase().includes(searchTerm.toLowerCase());
@@ -95,7 +95,7 @@ export function ProxyRequestsTable() {
 
     // Sort the filtered results
     filtered.sort((a, b) => {
-      let aValue: any, bValue: any;
+      let aValue: string | number, bValue: string | number;
 
       switch (sortConfig.field) {
         case 'timestamp':

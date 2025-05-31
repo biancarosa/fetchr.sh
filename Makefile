@@ -30,6 +30,8 @@ help:
 	@echo "  build                  - Build the Go application"
 	@echo "  build-dashboard        - Build the dashboard for production"
 	@echo "  build-all              - Build both backend and dashboard"
+	@echo "  build-embedded         - Build the Go application with embedded dashboard"
+	@echo "  build-all-embedded     - Build both backend and dashboard with embedded dashboard"
 	@echo ""
 	@echo "Test commands:"
 	@echo "  test                   - Run Go unit tests with coverage"
@@ -181,16 +183,30 @@ install-dashboard:
 build:
 	$(GO) build -o $(BINARY_NAME) ./cmd/fetchr
 
+# Build with embedded dashboard
+build-embedded: build-dashboard
+	@echo "Copying dashboard files for embedding..."
+	@mkdir -p internal/dashboard/out
+	@cp -r $(DASHBOARD_DIR)/out/* internal/dashboard/out/
+	@echo "Building Go application with embedded dashboard..."
+	$(GO) build -tags embed_dashboard -o $(BINARY_NAME) ./cmd/fetchr
+	@echo "✅ Embedded build completed successfully!"
+
 # Build the dashboard for production
 build-dashboard:
 	@if [ ! -d "$(DASHBOARD_DIR)" ]; then \
 		echo "❌ Error: Dashboard directory '$(DASHBOARD_DIR)' not found"; \
 		exit 1; \
 	fi
-	@cd $(DASHBOARD_DIR) && npm run build
+	@echo "Building dashboard for embedding..."
+	@cd $(DASHBOARD_DIR) && npm run build:static --legacy-peer-deps
+	@echo "✅ Dashboard built successfully!"
 
 # Build both backend and dashboard
 build-all: build build-dashboard
+
+# Build everything with embedded dashboard
+build-all-embedded: build-embedded
 
 # Run Go unit tests with coverage
 test:

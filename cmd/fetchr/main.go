@@ -36,9 +36,9 @@ func runServe() {
 	port := flag.Int("port", 8080, "Port to listen on")
 	adminPort := flag.Int("admin-port", 0, "Admin port for health checks and metrics (0 to disable)")
 	historySize := flag.Int("history-size", 1000, "Maximum number of requests to keep in history")
-	dashboard := flag.Bool("dashboard", false, "Enable web dashboard")
+	dashboard := flag.Bool("dashboard", true, "Enable web dashboard")
 	dashboardPort := flag.Int("dashboard-port", 3000, "Dashboard port")
-	dashboardDir := flag.String("dashboard-dir", "dashboard/out", "Directory containing dashboard build files")
+	dashboardDir := flag.String("dashboard-dir", "", "Directory containing dashboard build files (optional if embedded)")
 	logLevel := flag.String("log-level", "info", "Logging level (debug, info, warn, error)")
 	flag.Parse()
 
