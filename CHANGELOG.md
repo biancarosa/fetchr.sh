@@ -8,6 +8,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.0.1-alpha.0] - 2025-05-31
 
 ### 🚀 Features
+- Create basic proxy
+- Add github workflows
+- Add comprehensive Makefile with install command and improved CI workflow
+- Add sleek dashboard and separate admin endpoints to dedicated port
+- Add comprehensive request history with timing metrics and admin API
+- Complete request history integration with dashboard
+- **dashboard**: Integrate dashboard requests through proxy with X-Fetchr-Destination header
+- Enhance makefile
+- Dashboard improvements on the sidebar
+- Dashboard improvements - create history and statistics pages
+
+
+### 🐛 Bug Fixes
+- Resolve proxy compilation issue and implement complete HTTP proxy functionality
+- **e2e**: Handle OPTIONS requests and skip JSON parsing for OPTIONS in proxy tests
+
+
+### 📚 Documentation
+- Update README with comprehensive request history and dashboard documentation
+- Add commit message format guidelines to cursor rules
+- Update INTERFACES.md with current implementation
+
+
+### ⚙️ Miscellaneous Tasks
+- Add codecov token
+- Properly generate coverage
+- Dashboard improvements - handle NaNs
+- **release**: Prepare release v0.0.1-alpha.0
+
+
+## [0.0.1-alpha.0] - 2025-05-31
+
+### 🚀 Features
 - Add comprehensive request history with timing metrics and admin API
 - Complete request history integration with dashboard
 - **dashboard**: Integrate dashboard requests through proxy with X-Fetchr-Destination header
