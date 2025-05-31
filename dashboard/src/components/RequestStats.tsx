@@ -60,9 +60,9 @@ export function RequestStats({ className }: RequestStatsProps) {
 
   return (
     <Card className={className}>
-      <CardHeader className="pb-3">
+      <CardHeader className="pb-0 pt-2 px-3">
         <CardTitle className="flex items-center justify-between text-sm">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
             <BarChart3 className="h-4 w-4" />
             <span>Request Statistics</span>
           </div>
@@ -76,7 +76,7 @@ export function RequestStats({ className }: RequestStatsProps) {
                   disabled={isLoading}
                   className="h-6 w-6 p-0"
                 >
-                  <RefreshCw className={`h-3 w-3 ${isLoading ? 'animate-spin' : ''}`} />
+                  <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? 'animate-spin' : ''}`} />
                 </Button>
               </TooltipTrigger>
               <TooltipContent>Refresh statistics</TooltipContent>
@@ -97,17 +97,17 @@ export function RequestStats({ className }: RequestStatsProps) {
             <div className="animate-pulse">Loading stats...</div>
           </div>
         ) : stats ? (
-          <div className="space-y-3">
+          <div className="space-y-2">
             {/* Request counts */}
-            <div className="grid grid-cols-2 gap-2">
-              <div className="flex items-center gap-2">
+            <div className="grid grid-cols-2 gap-1.5">
+              <div className="flex items-center gap-1.5">
                 <CheckCircle className="h-4 w-4 text-green-500" />
                 <div>
                   <div className="text-xs text-muted-foreground">Success</div>
                   <div className="text-sm font-medium">{stats.success_count}</div>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5">
                 <XCircle className="h-4 w-4 text-red-500" />
                 <div>
                   <div className="text-xs text-muted-foreground">Errors</div>
@@ -130,7 +130,7 @@ export function RequestStats({ className }: RequestStatsProps) {
             </div>
 
             {/* Timing stats */}
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <span className="text-xs text-muted-foreground">Avg Duration</span>
                 <span className="text-xs font-medium">{(stats.avg_duration_us / 1000).toFixed(1)}ms</span>
@@ -146,7 +146,7 @@ export function RequestStats({ className }: RequestStatsProps) {
             </div>
 
             {/* Data transfer */}
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <span className="text-xs text-muted-foreground">Total Requests</span>
                 <span className="text-xs font-medium">{formatBytes(stats.total_request_size)}</span>
@@ -160,7 +160,7 @@ export function RequestStats({ className }: RequestStatsProps) {
             {/* Top status codes */}
             {stats.status_codes && Object.keys(stats.status_codes).length > 0 && (
               <div>
-                <div className="text-xs text-muted-foreground mb-2">Status Codes</div>
+                <div className="text-xs text-muted-foreground mb-1">Status Codes</div>
                 <div className="flex flex-wrap gap-1">
                   {Object.entries(stats.status_codes)
                     .sort(([,a], [,b]) => b - a)
@@ -177,7 +177,7 @@ export function RequestStats({ className }: RequestStatsProps) {
             {/* Top methods */}
             {stats.methods && Object.keys(stats.methods).length > 0 && (
               <div>
-                <div className="text-xs text-muted-foreground mb-2">Methods</div>
+                <div className="text-xs text-muted-foreground mb-1">Methods</div>
                 <div className="flex flex-wrap gap-1">
                   {Object.entries(stats.methods)
                     .sort(([,a], [,b]) => b - a)

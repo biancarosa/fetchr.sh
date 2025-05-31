@@ -6,7 +6,7 @@ import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { ScrollArea } from './ui/scroll-area';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
-import { History, Trash2, ExternalLink, Server, RefreshCw } from 'lucide-react';
+import { History, ExternalLink, Server, RefreshCw } from 'lucide-react';
 import { useRequestStore } from '../hooks/useRequestStore';
 import { useRefresh } from '../hooks/useRefreshContext';
 import { apiService, BackendRequestRecord } from '../services/api';
@@ -36,18 +36,6 @@ export function Sidebar() {
       console.error('Failed to fetch backend history:', error);
     } finally {
       setIsLoadingBackend(false);
-    }
-  };
-
-  const clearBackendHistory = async () => {
-    try {
-      const success = await apiService.clearRequestHistory();
-      if (success) {
-        setBackendHistory([]);
-        setLastRefresh(new Date());
-      }
-    } catch (error) {
-      console.error('Failed to clear backend history:', error);
     }
   };
 
@@ -105,16 +93,16 @@ export function Sidebar() {
   };
 
   return (
-    <div className="h-full bg-background">
-      <Card className="h-full rounded-none border-0">
-        <CardHeader className="pb-4">
-          <CardTitle className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <History className="h-5 w-5" />
+    <div className="h-full bg-background flex flex-col">
+      <Card className="h-full rounded-none border-0 flex flex-col">
+        <CardHeader className="pb-0 pt-2 px-3 flex-shrink-0">
+          <CardTitle className="flex items-center justify-between text-sm">
+            <div className="flex items-center gap-1">
+              <History className="h-4 w-4" />
               <span>Proxy Requests</span>
             </div>
             <div className="flex items-center gap-1">
-              <Badge variant="outline" className="text-xs">
+              <Badge variant="outline" className="text-xs h-5 px-1.5">
                 {backendHistory.length}
               </Badge>
               <TooltipProvider>
@@ -125,8 +113,9 @@ export function Sidebar() {
                       size="sm" 
                       onClick={fetchBackendHistory}
                       disabled={isLoadingBackend}
+                      className="h-6 w-6 p-0"
                     >
-                      <RefreshCw className={`h-4 w-4 ${isLoadingBackend ? 'animate-spin' : ''}`} />
+                      <RefreshCw className={`h-3.5 w-3.5 ${isLoadingBackend ? 'animate-spin' : ''}`} />
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>Refresh proxy history</TooltipContent>
@@ -135,139 +124,119 @@ export function Sidebar() {
             </div>
           </CardTitle>
           {lastRefresh && (
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-muted-foreground mt-0.5 leading-none">
               Last updated: {formatDistanceToNow(lastRefresh, { addSuffix: true })}
             </p>
           )}
         </CardHeader>
-        <CardContent className="p-0">
-          <div className="px-2 pb-2">
-            {backendHistory.length > 0 && (
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      onClick={clearBackendHistory}
-                      className="w-full text-xs"
-                    >
-                      <Trash2 className="h-4 w-4 mr-1" />
-                      Clear history
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>Clear all proxy request history</TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            )}
-          </div>
-          
-          <ScrollArea className="h-[calc(100vh-10rem)]">
-            {backendHistory.length === 0 ? (
-              <div className="p-4 text-center text-muted-foreground">
-                <Server className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                <p className="text-sm">No proxy requests yet</p>
-                <p className="text-xs mt-1">Requests through the proxy will appear here</p>
-              </div>
-            ) : (
-              <div className="space-y-2 p-2">
-                {backendHistory.map((item) => (
-                  <div
-                    key={item.id}
-                    className="border rounded-lg p-3 hover:bg-muted/50 cursor-pointer transition-colors"
-                    onClick={() => loadBackendHistoryItem(item)}
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <Badge 
-                        className={`text-xs ${getMethodColor(item.method)}`}
-                        variant="secondary"
+        <CardContent className="p-0 flex-1 flex flex-col min-h-0">
+          <div className="flex-1 min-h-0">
+            <ScrollArea className="h-full">
+              <div className="min-h-full">
+                {backendHistory.length === 0 ? (
+                  <div className="p-4 text-center text-muted-foreground">
+                    <Server className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                    <p className="text-sm">No proxy requests yet</p>
+                    <p className="text-xs mt-1">Requests through the proxy will appear here</p>
+                  </div>
+                ) : (
+                  <div className="space-y-1.5 p-1.5 pb-2">
+                    {backendHistory.map((item) => (
+                      <div
+                        key={item.id}
+                        className="border rounded-lg p-2 hover:bg-muted/50 cursor-pointer transition-colors"
+                        onClick={() => loadBackendHistoryItem(item)}
                       >
-                        {item.method}
-                      </Badge>
-                      <div className="flex gap-1">
-                        {item.success ? (
+                        <div className="flex items-center justify-between mb-2">
                           <Badge 
-                            className={`text-xs ${getStatusColor(item.response_status)}`}
+                            className={`text-xs ${getMethodColor(item.method)}`}
                             variant="secondary"
                           >
-                            {item.response_status}
+                            {item.method}
                           </Badge>
-                        ) : (
-                          <Badge className="text-xs bg-red-100 text-red-800" variant="secondary">
-                            Error
-                          </Badge>
-                        )}
-                      </div>
-                    </div>
-                    
-                    <div className="space-y-1">
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <p className="text-sm font-medium truncate">
-                              {truncateUrl(item.url)}
-                            </p>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p className="max-w-md break-all">{item.url}</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                      
-                      <div className="flex items-center justify-between text-xs text-muted-foreground">
-                        <span>
-                          {formatDistanceToNow(new Date(item.timestamp), { addSuffix: true })}
-                        </span>
-                        <div className="flex gap-2">
+                          <div className="flex gap-1 items-center">
+                            {item.success ? (
+                              <Badge 
+                                className={`text-xs ${getStatusColor(item.response_status)}`}
+                                variant="secondary"
+                              >
+                                {item.response_status}
+                              </Badge>
+                            ) : (
+                              <Badge className="text-xs bg-red-100 text-red-800" variant="secondary">
+                                Error
+                              </Badge>
+                            )}
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-5 w-5 p-0"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      window.open(item.url, '_blank');
+                                    }}
+                                  >
+                                    <ExternalLink className="h-3 w-3" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Open in new tab</TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          </div>
+                        </div>
+                        
+                        <div className="space-y-1">
                           <TooltipProvider>
                             <Tooltip>
                               <TooltipTrigger asChild>
-                                <span>{(item.total_duration_us / 1000).toFixed(1)}ms</span>
+                                <p className="text-sm font-medium truncate">
+                                  {truncateUrl(item.url)}
+                                </p>
                               </TooltipTrigger>
                               <TooltipContent>
-                                <div className="text-xs">
-                                  <div>Total: {(item.total_duration_us / 1000).toFixed(1)}ms</div>
-                                  <div>Upstream: {(item.upstream_latency_us / 1000).toFixed(1)}ms</div>
-                                  <div>Proxy: {(item.proxy_overhead_us / 1000).toFixed(1)}ms</div>
-                                </div>
+                                <p className="max-w-md break-all">{item.url}</p>
                               </TooltipContent>
                             </Tooltip>
                           </TooltipProvider>
+                          
+                          <div className="flex items-center justify-between text-xs text-muted-foreground">
+                            <span>
+                              {formatDistanceToNow(new Date(item.timestamp), { addSuffix: true })}
+                            </span>
+                            <div className="flex gap-2">
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <span>{(item.total_duration_us / 1000).toFixed(1)}ms</span>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <div className="text-xs">
+                                      <div>Total: {(item.total_duration_us / 1000).toFixed(1)}ms</div>
+                                      <div>Upstream: {(item.upstream_latency_us / 1000).toFixed(1)}ms</div>
+                                      <div>Proxy: {(item.proxy_overhead_us / 1000).toFixed(1)}ms</div>
+                                    </div>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            </div>
+                          </div>
+                          
+                          {!item.success && item.error && (
+                            <p className="text-xs text-red-600 truncate">
+                              {item.error}
+                            </p>
+                          )}
                         </div>
                       </div>
-                      
-                      {!item.success && item.error && (
-                        <p className="text-xs text-red-600 truncate">
-                          {item.error}
-                        </p>
-                      )}
-                    </div>
-                    
-                    <div className="flex items-center justify-end mt-2">
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-6 w-6 p-0"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                window.open(item.url, '_blank');
-                              }}
-                            >
-                              <ExternalLink className="h-3 w-3" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>Open in new tab</TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </div>
+                    ))}
                   </div>
-                ))}
+                )}
               </div>
-            )}
-          </ScrollArea>
+            </ScrollArea>
+          </div>
         </CardContent>
       </Card>
     </div>
