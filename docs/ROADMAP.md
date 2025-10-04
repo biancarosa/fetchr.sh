@@ -1,8 +1,8 @@
-# netkit Implementation Roadmap
+# netkit Roadmap
 
-This document outlines the implementation roadmap for netkit, breaking down the development into phases and milestones.
+This document outlines potential features and capabilities that could be developed for netkit. This is not a commitment to specific versions or timelines, but rather a guide for possible directions the project could take.
 
-## Current Status (v0.0.1-alpha.1)
+## Current Status
 
 ### ✅ Implemented Core Features
 - [x] Basic HTTP proxy implementation
@@ -26,7 +26,7 @@ This document outlines the implementation roadmap for netkit, breaking down the 
 - [x] Multi-platform binary builds
 - [x] Embedded dashboard support
 
-## Phase 1: Stabilization and Core Improvements (v0.1.0)
+## Stabilization and Core Improvements
 
 ### Enhanced Configuration
 - [ ] YAML configuration file support
@@ -58,7 +58,7 @@ This document outlines the implementation roadmap for netkit, breaking down the 
 - [ ] Export to Postman collection
 - [ ] Import from HAR/Postman
 
-## Phase 2: Advanced Features (v0.2.0)
+## Advanced Features
 
 ### Caching System
 - [ ] In-memory cache implementation
@@ -86,7 +86,7 @@ This document outlines the implementation roadmap for netkit, breaking down the 
 - [ ] URL rewriting rules
 - [ ] Query parameter manipulation
 
-## Phase 3: Performance & Monitoring (v0.3.0)
+## Performance & Monitoring
 
 ### Enhanced Metrics
 - [ ] Prometheus metrics endpoint
@@ -111,7 +111,7 @@ This document outlines the implementation roadmap for netkit, breaking down the 
 - [ ] Log export to external systems
 - [ ] Audit logging
 
-## Phase 4: Enterprise Features (v0.4.0)
+## Enterprise Features
 
 ### Security
 - [ ] TLS/SSL certificate management
@@ -138,7 +138,7 @@ This document outlines the implementation roadmap for netkit, breaking down the 
 - [ ] Request chaining/workflows
 - [ ] Conditional request logic
 
-## Phase 5: Developer Experience (v0.5.0)
+## Developer Experience
 
 ### Testing & Mocking
 - [ ] API mocking capabilities
@@ -162,7 +162,7 @@ This document outlines the implementation roadmap for netkit, breaking down the 
 - [ ] Performance testing framework
 - [ ] Integration test helpers
 
-## Phase 6: Cloud & Integration (v0.6.0)
+## Cloud & Integration
 
 ### Cloud Provider Support
 - [ ] AWS integration (S3, CloudWatch)
@@ -209,21 +209,9 @@ This document outlines the implementation roadmap for netkit, breaking down the 
 - [ ] Community plugin repository
 - [ ] Public roadmap with voting
 
-## Version Timeline
-
-> **Note**: Timeline is tentative and subject to community feedback
-
-- **v0.0.1-alpha.1**: Initial alpha release (Current)
-- **v0.1.0**: Q2 2025 - Stabilization and core improvements
-- **v0.2.0**: Q3 2025 - Advanced features
-- **v0.3.0**: Q4 2025 - Performance & monitoring
-- **v0.4.0**: Q1 2026 - Enterprise features
-- **v0.5.0**: Q2 2026 - Developer experience
-- **v0.6.0**: Q3 2026 - Cloud & integration
-
 ## Development Principles
 
-Throughout all phases, we maintain focus on:
+As we develop new features, we maintain focus on:
 
 - **Simplicity**: Keep the core simple and easy to understand
 - **Performance**: Optimize for low latency and high throughput
