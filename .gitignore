@@ -1,6 +1,6 @@
 coverage.txt
 coverage-e2e.txt
-fetchr
+netkit
 
 # Embedded dashboard files (generated during build)
 internal/dashboard/out/

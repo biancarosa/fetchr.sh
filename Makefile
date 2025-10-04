@@ -1,6 +1,6 @@
 .PHONY: build test lint clean coverage release version install check ci help all dev commit-feat commit-fix commit-refactor commit-perf commit-security
 .PHONY: build-dashboard test-dashboard lint-dashboard clean-dashboard install-dashboard install-backend dashboard-dev serve-dev build-all clean-all
-.PHONY: changelog changelog-update changelog-init install-changelog-tools release-patch release-minor release-major release-prerelease
+.PHONY: changelog changelog-update changelog-init install-changelog-tools release-patch release-minor release-major release-prerelease release-prerelease-next
 .PHONY: commit-docs commit-style commit-test commit-chore commit-breaking check-conventional-commits
 
 # Build variables
@@ -60,10 +60,11 @@ help:
 	@echo "  changelog-update       - Update changelog with latest commits since last tag"
 	@echo ""
 	@echo "Release commands:"
-	@echo "  release-patch          - Create a patch release (1.0.0 -> 1.0.1)"
-	@echo "  release-minor          - Create a minor release (1.0.0 -> 1.1.0)"
-	@echo "  release-major          - Create a major release (1.0.0 -> 2.0.0)"
-	@echo "  release-prerelease     - Create a prerelease (1.0.0 -> 1.0.1-alpha.0)"
+	@echo "  release-patch          - Create a patch release (1.0.0 -> 1.0.1 or 1.0.1-alpha.2 -> 1.0.1)"
+	@echo "  release-minor          - Create a minor release (1.0.0 -> 1.1.0 or 1.1.0-alpha.2 -> 1.1.0)"
+	@echo "  release-major          - Create a major release (1.0.0 -> 2.0.0 or 2.0.0-alpha.2 -> 2.0.0)"
+	@echo "  release-prerelease     - Create/increment prerelease (1.0.0 -> 1.0.0-alpha.1 or 1.0.0-alpha.1 -> 1.0.0-alpha.2)"
+	@echo "  release-prerelease-next- Create prerelease for next version (1.0.0 -> 1.0.1-alpha.0)"
 	@echo "  release                - Create a new release tag (usage: make release version=1.0.0)"
 	@echo ""
 	@echo "Utility commands:"
@@ -440,7 +441,7 @@ check-conventional-commits:
 		echo "✅ All recent commits follow conventional commit format!"; \
 	fi
 
-# Create a patch release (1.0.0 -> 1.0.1)
+# Create a patch release (1.0.0 -> 1.0.1 or 1.0.1-alpha.2 -> 1.0.1)
 release-patch: check-conventional-commits
 	@echo "Creating patch release..."
 	@current_version=$$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//'); \
@@ -451,18 +452,21 @@ release-patch: check-conventional-commits
 	if [ "$$current_version" = "0.0.0" ]; then \
 		new_version="0.0.1"; \
 	else \
-		if echo "$$current_version" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+'; then \
+		if echo "$$current_version" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$$'; then \
 			new_version=$$(echo "$$current_version" | awk -F. '{print $$1"."$$2"."$$3+1}'); \
+		elif echo "$$current_version" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+-'; then \
+			new_version=$$(echo "$$current_version" | sed 's/-.*//'); \
+			echo "Graduating prerelease to stable version"; \
 		else \
 			echo "❌ Error: Invalid current version format: $$current_version"; \
-			echo "Expected format: x.y.z (e.g., 1.0.0)"; \
+			echo "Expected format: x.y.z or x.y.z-prerelease (e.g., 1.0.0 or 1.0.1-alpha.0)"; \
 			exit 1; \
 		fi; \
 	fi; \
 	echo "Bumping version from $$current_version to $$new_version"; \
 	$(MAKE) _do_release version=$$new_version
 
-# Create a minor release (1.0.0 -> 1.1.0)
+# Create a minor release (1.0.0 -> 1.1.0 or 1.1.0-alpha.2 -> 1.1.0)
 release-minor: check-conventional-commits
 	@echo "Creating minor release..."
 	@current_version=$$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//'); \
@@ -473,18 +477,21 @@ release-minor: check-conventional-commits
 	if [ "$$current_version" = "0.0.0" ]; then \
 		new_version="0.1.0"; \
 	else \
-		if echo "$$current_version" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+'; then \
+		if echo "$$current_version" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$$'; then \
 			new_version=$$(echo "$$current_version" | awk -F. '{print $$1"."$$2+1".0"}'); \
+		elif echo "$$current_version" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+-'; then \
+			new_version=$$(echo "$$current_version" | sed 's/-.*//'); \
+			echo "Graduating prerelease to stable version"; \
 		else \
 			echo "❌ Error: Invalid current version format: $$current_version"; \
-			echo "Expected format: x.y.z (e.g., 1.0.0)"; \
+			echo "Expected format: x.y.z or x.y.z-prerelease (e.g., 1.0.0 or 1.1.0-alpha.0)"; \
 			exit 1; \
 		fi; \
 	fi; \
 	echo "Bumping version from $$current_version to $$new_version"; \
 	$(MAKE) _do_release version=$$new_version
 
-# Create a major release (1.0.0 -> 2.0.0)
+# Create a major release (1.0.0 -> 2.0.0 or 2.0.0-alpha.2 -> 2.0.0)
 release-major: check-conventional-commits
 	@echo "Creating major release..."
 	@current_version=$$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//'); \
@@ -495,18 +502,21 @@ release-major: check-conventional-commits
 	if [ "$$current_version" = "0.0.0" ]; then \
 		new_version="1.0.0"; \
 	else \
-		if echo "$$current_version" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+'; then \
+		if echo "$$current_version" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$$'; then \
 			new_version=$$(echo "$$current_version" | awk -F. '{print $$1+1".0.0"}'); \
+		elif echo "$$current_version" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+-'; then \
+			new_version=$$(echo "$$current_version" | sed 's/-.*//'); \
+			echo "Graduating prerelease to stable version"; \
 		else \
 			echo "❌ Error: Invalid current version format: $$current_version"; \
-			echo "Expected format: x.y.z (e.g., 1.0.0)"; \
+			echo "Expected format: x.y.z or x.y.z-prerelease (e.g., 1.0.0 or 2.0.0-alpha.0)"; \
 			exit 1; \
 		fi; \
 	fi; \
 	echo "Bumping version from $$current_version to $$new_version"; \
 	$(MAKE) _do_release version=$$new_version
 
-# Create a prerelease (1.0.0 -> 1.0.1-alpha.0)
+# Create a prerelease (1.0.0 -> 1.0.0-alpha.1 or 1.0.0-alpha.1 -> 1.0.0-alpha.2)
 release-prerelease:
 	@if [ "$(name)" = "" ]; then \
 		echo "Error: prerelease name is required. Usage: make release-prerelease name=alpha"; \
@@ -519,16 +529,56 @@ release-prerelease:
 	fi; \
 	echo "Current version: $$current_version"; \
 	if [ "$$current_version" = "0.0.0" ]; then \
-		new_version="0.0.1-$(name).0"; \
+		new_version="0.0.0-$(name).1"; \
+	elif echo "$$current_version" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$$'; then \
+		new_version="$$current_version-$(name).1"; \
+	elif echo "$$current_version" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+-$(name)\.[0-9]+$$'; then \
+		base_version=$$(echo "$$current_version" | sed 's/-$(name)\.[0-9]*//'); \
+		prerelease_num=$$(echo "$$current_version" | grep -oE '[0-9]+$$'); \
+		new_prerelease_num=$$((prerelease_num + 1)); \
+		new_version="$$base_version-$(name).$$new_prerelease_num"; \
+		echo "Incrementing $(name) prerelease number"; \
+	elif echo "$$current_version" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+-[a-zA-Z]+\.[0-9]+$$'; then \
+		old_name=$$(echo "$$current_version" | sed -E 's/.*-([a-zA-Z]+)\.[0-9]+$$/\1/'); \
+		echo "⚠️  Warning: Current prerelease is '$$old_name', but you requested '$(name)'"; \
+		echo "Switching prerelease identifier from $$old_name to $(name)"; \
+		base_version=$$(echo "$$current_version" | sed -E 's/-[a-zA-Z]+\.[0-9]+$$//'); \
+		new_version="$$base_version-$(name).1"; \
 	else \
-		if echo "$$current_version" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+'; then \
-			base_version=$$(echo "$$current_version" | awk -F. '{print $$1"."$$2"."$$3+1}'); \
-			new_version="$$base_version-$(name).0"; \
-		else \
-			echo "❌ Error: Invalid current version format: $$current_version"; \
-			echo "Expected format: x.y.z (e.g., 1.0.0)"; \
-			exit 1; \
-		fi; \
+		echo "❌ Error: Invalid current version format: $$current_version"; \
+		echo "Expected format: x.y.z or x.y.z-prerelease.num (e.g., 1.0.0 or 1.0.0-alpha.1)"; \
+		exit 1; \
+	fi; \
+	echo "Bumping version from $$current_version to $$new_version"; \
+	$(MAKE) _do_release version=$$new_version
+
+# Create a prerelease for the next version (1.0.0 -> 1.0.1-alpha.0)
+release-prerelease-next:
+	@if [ "$(name)" = "" ]; then \
+		echo "Error: prerelease name is required. Usage: make release-prerelease-next name=alpha"; \
+		echo "Hint: Use 'make release-prerelease' to increment current version prerelease"; \
+		exit 1; \
+	fi
+	@echo "Creating prerelease for next version with name '$(name)'..."
+	@current_version=$$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//'); \
+	if [ -z "$$current_version" ]; then \
+		current_version="0.0.0"; \
+	fi; \
+	echo "Current version: $$current_version"; \
+	if [ "$$current_version" = "0.0.0" ]; then \
+		new_version="0.0.1-$(name).0"; \
+	elif echo "$$current_version" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$$'; then \
+		base_version=$$(echo "$$current_version" | awk -F. '{print $$1"."$$2"."$$3+1}'); \
+		new_version="$$base_version-$(name).0"; \
+	elif echo "$$current_version" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+-[a-zA-Z]+\.[0-9]+$$'; then \
+		base_version=$$(echo "$$current_version" | sed -E 's/-[a-zA-Z]+\.[0-9]+$$//'); \
+		next_patch=$$(echo "$$base_version" | awk -F. '{print $$1"."$$2"."$$3+1}'); \
+		new_version="$$next_patch-$(name).0"; \
+		echo "Creating prerelease for next patch version"; \
+	else \
+		echo "❌ Error: Invalid current version format: $$current_version"; \
+		echo "Expected format: x.y.z or x.y.z-prerelease.num (e.g., 1.0.0 or 1.0.0-alpha.1)"; \
+		exit 1; \
 	fi; \
 	echo "Bumping version from $$current_version to $$new_version"; \
 	$(MAKE) _do_release version=$$new_version
