@@ -19,27 +19,7 @@ A modern HTTP proxy and request capture tool with a sleek web dashboard.
 ### 1. Build the Project
 
 ```bash
-make build
-```
-
-### 2. Start the Proxy Server
-
-```bash
-# Start with request history and admin endpoints
-./fetchr serve --admin-port 8081 --history-size 1000
-
-# Or use the development command
 make dev
-```
-
-### 3. Access the Dashboard
-
-```bash
-# Build and serve the dashboard
-cd dashboard
-npm install --legacy-peer-deps
-npm run build
-npm run dev
 ```
 
 Open http://localhost:3000 to access the dashboard.
