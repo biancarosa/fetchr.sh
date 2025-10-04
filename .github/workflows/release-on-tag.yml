@@ -117,21 +117,21 @@ jobs:
         run: |
           # Build for multiple platforms
           mkdir -p dist
-          
+
           # Linux amd64
-          GOOS=linux GOARCH=amd64 go build -tags embed_dashboard -o dist/fetchr-linux-amd64 ./cmd/fetchr
-          
+          GOOS=linux GOARCH=amd64 go build -tags embed_dashboard -o dist/netkit-linux-amd64 ./cmd/netkit
+
           # Linux arm64
-          GOOS=linux GOARCH=arm64 go build -tags embed_dashboard -o dist/fetchr-linux-arm64 ./cmd/fetchr
-          
+          GOOS=linux GOARCH=arm64 go build -tags embed_dashboard -o dist/netkit-linux-arm64 ./cmd/netkit
+
           # macOS amd64
-          GOOS=darwin GOARCH=amd64 go build -tags embed_dashboard -o dist/fetchr-darwin-amd64 ./cmd/fetchr
-          
+          GOOS=darwin GOARCH=amd64 go build -tags embed_dashboard -o dist/netkit-darwin-amd64 ./cmd/netkit
+
           # macOS arm64 (Apple Silicon)
-          GOOS=darwin GOARCH=arm64 go build -tags embed_dashboard -o dist/fetchr-darwin-arm64 ./cmd/fetchr
-          
+          GOOS=darwin GOARCH=arm64 go build -tags embed_dashboard -o dist/netkit-darwin-arm64 ./cmd/netkit
+
           # Windows amd64
-          GOOS=windows GOARCH=amd64 go build -tags embed_dashboard -o dist/fetchr-windows-amd64.exe ./cmd/fetchr
+          GOOS=windows GOARCH=amd64 go build -tags embed_dashboard -o dist/netkit-windows-amd64.exe ./cmd/netkit
 
       - name: Generate checksums
         run: |
@@ -183,11 +183,11 @@ jobs:
           echo "" >> RELEASE_NOTES.md
           echo "Choose the appropriate binary for your platform:" >> RELEASE_NOTES.md
           echo "" >> RELEASE_NOTES.md
-          echo "- **Linux (x64)**: \`fetchr-linux-amd64\`" >> RELEASE_NOTES.md
-          echo "- **Linux (ARM64)**: \`fetchr-linux-arm64\`" >> RELEASE_NOTES.md
-          echo "- **macOS (Intel)**: \`fetchr-darwin-amd64\`" >> RELEASE_NOTES.md
-          echo "- **macOS (Apple Silicon)**: \`fetchr-darwin-arm64\`" >> RELEASE_NOTES.md
-          echo "- **Windows (x64)**: \`fetchr-windows-amd64.exe\`" >> RELEASE_NOTES.md
+          echo "- **Linux (x64)**: \`netkit-linux-amd64\`" >> RELEASE_NOTES.md
+          echo "- **Linux (ARM64)**: \`netkit-linux-arm64\`" >> RELEASE_NOTES.md
+          echo "- **macOS (Intel)**: \`netkit-darwin-amd64\`" >> RELEASE_NOTES.md
+          echo "- **macOS (Apple Silicon)**: \`netkit-darwin-arm64\`" >> RELEASE_NOTES.md
+          echo "- **Windows (x64)**: \`netkit-windows-amd64.exe\`" >> RELEASE_NOTES.md
           echo "" >> RELEASE_NOTES.md
           echo "### ✨ Features" >> RELEASE_NOTES.md
           echo "" >> RELEASE_NOTES.md
@@ -202,10 +202,10 @@ jobs:
           echo "" >> RELEASE_NOTES.md
           echo "\`\`\`bash" >> RELEASE_NOTES.md
           echo "# Download and make executable" >> RELEASE_NOTES.md
-          echo "chmod +x fetchr-*" >> RELEASE_NOTES.md
+          echo "chmod +x netkit-*" >> RELEASE_NOTES.md
           echo "" >> RELEASE_NOTES.md
           echo "# Start the proxy with embedded dashboard" >> RELEASE_NOTES.md
-          echo "./fetchr-* serve --admin-port 8081" >> RELEASE_NOTES.md
+          echo "./netkit-* serve --admin-port 8081" >> RELEASE_NOTES.md
           echo "" >> RELEASE_NOTES.md
           echo "# Access the dashboard at http://localhost:3000" >> RELEASE_NOTES.md
           echo "\`\`\`" >> RELEASE_NOTES.md

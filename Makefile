@@ -264,7 +264,7 @@ dev-safe: check
 # Start only the backend in development mode
 serve-dev:
 	@echo "Starting backend in development mode on port 8080..."
-	@$(GO) run ./cmd/netkit serve --port 8080 --log-level debug --admin-port 8081
+	@$(GO) run ./cmd/netkit serve --port 8080 --log-level debug --admin-port 8081 --dashboard=false
 
 # Start only the dashboard in development mode
 dashboard-dev:
@@ -273,7 +273,7 @@ dashboard-dev:
 		exit 1; \
 	fi
 	@echo "Starting dashboard in development mode on port 3000..."
-	@cd $(DASHBOARD_DIR) && npm run dev
+	@cd $(DASHBOARD_DIR) && PORT=3000 npm run dev
 
 # Show Go coverage report
 coverage:
