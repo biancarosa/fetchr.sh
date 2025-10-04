@@ -480,8 +480,9 @@ release-minor: check-conventional-commits
 		if echo "$$current_version" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$$'; then \
 			new_version=$$(echo "$$current_version" | awk -F. '{print $$1"."$$2+1".0"}'); \
 		elif echo "$$current_version" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+-'; then \
-			new_version=$$(echo "$$current_version" | sed 's/-.*//'); \
-			echo "Graduating prerelease to stable version"; \
+			base_version=$$(echo "$$current_version" | sed 's/-.*//'); \
+			new_version=$$(echo "$$base_version" | awk -F. '{print $$1"."$$2+1".0"}'); \
+			echo "Bumping minor version from prerelease"; \
 		else \
 			echo "❌ Error: Invalid current version format: $$current_version"; \
 			echo "Expected format: x.y.z or x.y.z-prerelease (e.g., 1.0.0 or 1.1.0-alpha.0)"; \
@@ -505,8 +506,9 @@ release-major: check-conventional-commits
 		if echo "$$current_version" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$$'; then \
 			new_version=$$(echo "$$current_version" | awk -F. '{print $$1+1".0.0"}'); \
 		elif echo "$$current_version" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+-'; then \
-			new_version=$$(echo "$$current_version" | sed 's/-.*//'); \
-			echo "Graduating prerelease to stable version"; \
+			base_version=$$(echo "$$current_version" | sed 's/-.*//'); \
+			new_version=$$(echo "$$base_version" | awk -F. '{print $$1+1".0.0"}'); \
+			echo "Bumping major version from prerelease"; \
 		else \
 			echo "❌ Error: Invalid current version format: $$current_version"; \
 			echo "Expected format: x.y.z or x.y.z-prerelease (e.g., 1.0.0 or 2.0.0-alpha.0)"; \
