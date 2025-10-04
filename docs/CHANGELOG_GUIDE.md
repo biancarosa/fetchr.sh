@@ -180,10 +180,16 @@ make release-minor
 # Major release (1.0.0 → 2.0.0) - breaking changes
 make release-major
 
-# Prerelease (1.0.0 → 1.0.1-alpha.0)
+# Prerelease of current version (1.0.0 → 1.0.0-alpha.1)
+# Also increments existing prereleases (1.0.0-alpha.1 → 1.0.0-alpha.2)
 make release-prerelease name=alpha
 make release-prerelease name=beta
 make release-prerelease name=rc
+
+# Prerelease of next version (1.0.0 → 1.0.1-alpha.0)
+make release-prerelease-next name=alpha
+make release-prerelease-next name=beta
+make release-prerelease-next name=rc
 ```
 
 ### Manual Release
@@ -295,6 +301,34 @@ make release-major
 git push origin main --tags
 ```
 
+### Prerelease Workflow
+
+```bash
+# Starting from version 1.0.0
+
+# 1. Create first prerelease of current version
+make release-prerelease name=alpha
+# Creates: 1.0.0-alpha.1
+
+# 2. Make changes and increment prerelease
+make commit-feat msg="add experimental feature"
+make release-prerelease name=alpha
+# Creates: 1.0.0-alpha.2
+
+# 3. More iterations
+make commit-fix msg="fix alpha issue"
+make release-prerelease name=alpha
+# Creates: 1.0.0-alpha.3
+
+# 4. Graduate to stable release
+make release-patch
+# Creates: 1.0.0 (stable)
+
+# Alternative: Create prerelease for next version
+make release-prerelease-next name=beta
+# Creates: 1.0.1-beta.0
+```
+
 ## Best Practices
 
 ### Commit Messages
@@ -306,10 +340,12 @@ git push origin main --tags
 
 ### Releases
 
-- **Patch releases**: Only bug fixes, no new features
-- **Minor releases**: New features that don't break existing functionality
-- **Major releases**: Breaking changes that require user action
+- **Patch releases**: Only bug fixes, no new features. Also used to graduate prereleases to stable (1.0.0-alpha.2 → 1.0.0)
+- **Minor releases**: New features that don't break existing functionality. Also graduates prereleases (1.1.0-beta.3 → 1.1.0)
+- **Major releases**: Breaking changes that require user action. Also graduates prereleases (2.0.0-rc.1 → 2.0.0)
 - **Prereleases**: Test versions before stable release
+  - Use `release-prerelease` to create/increment prereleases of the current version
+  - Use `release-prerelease-next` to create prereleases of the next patch version
 
 ### Changelog
 
