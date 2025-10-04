@@ -82,5 +82,5 @@ cd .. && ./fetchr serve --dashboard --dashboard-dir dashboard/out</pre>
 </body>
 </html>`
 
-	w.Write([]byte(html))
+	_, _ = w.Write([]byte(html))
 }
