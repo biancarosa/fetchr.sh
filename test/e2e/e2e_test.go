@@ -148,25 +148,25 @@ func (ts *testServer) shutdown(t *testing.T) {
 	}
 }
 
-// fetchrCmd represents a running fetchr process
-type fetchrCmd struct {
+// netkitCmd represents a running netkit process
+type netkitCmd struct {
 	cmd    *exec.Cmd
 	stdout *bytes.Buffer
 	stderr *bytes.Buffer
 }
 
-// startProxyServer starts the fetchr proxy server with the given arguments
-func startProxyServer(t *testing.T, args ...string) *fetchrCmd {
+// startProxyServer starts the netkit proxy server with the given arguments
+func startProxyServer(t *testing.T, args ...string) *netkitCmd {
 	// Build binary path - we assume the binary is in the root directory
-	binaryPath := filepath.Join("..", "..", "fetchr")
+	binaryPath := filepath.Join("..", "..", "netkit")
 
 	// Check if binary exists
 	if _, err := os.Stat(binaryPath); os.IsNotExist(err) {
 		// Try to build it
-		t.Log("Fetchr binary not found, building it")
-		buildCmd := exec.Command("go", "build", "-o", binaryPath, "../../cmd/fetchr")
+		t.Log("Netkit binary not found, building it")
+		buildCmd := exec.Command("go", "build", "-o", binaryPath, "../../cmd/netkit")
 		if err := buildCmd.Run(); err != nil {
-			t.Fatalf("Failed to build fetchr binary: %v", err)
+			t.Fatalf("Failed to build netkit binary: %v", err)
 		}
 	}
 
@@ -183,39 +183,39 @@ func startProxyServer(t *testing.T, args ...string) *fetchrCmd {
 	cmd.Stderr = stderr
 
 	if err := cmd.Start(); err != nil {
-		t.Fatalf("Failed to start fetchr: %v", err)
+		t.Fatalf("Failed to start netkit: %v", err)
 	}
 
 	// Wait for proxy to start
 	time.Sleep(1 * time.Second)
 
-	return &fetchrCmd{
+	return &netkitCmd{
 		cmd:    cmd,
 		stdout: stdout,
 		stderr: stderr,
 	}
 }
 
-func (f *fetchrCmd) stop(t *testing.T) {
+func (f *netkitCmd) stop(t *testing.T) {
 	if err := f.cmd.Process.Signal(os.Interrupt); err != nil {
-		t.Logf("Failed to send interrupt to fetchr: %v", err)
+		t.Logf("Failed to send interrupt to netkit: %v", err)
 		if err := f.cmd.Process.Kill(); err != nil {
-			t.Logf("Failed to kill fetchr: %v", err)
+			t.Logf("Failed to kill netkit: %v", err)
 		}
 	}
 
 	// Collect process output
 	err := f.cmd.Wait()
 	if err != nil && err.Error() != "signal: interrupt" {
-		t.Logf("Fetchr exited with error: %v", err)
+		t.Logf("Netkit exited with error: %v", err)
 	}
 
 	// Give it a brief moment to flush output
 	time.Sleep(100 * time.Millisecond)
 
 	// We're keeping this small delay to ensure output is properly captured
-	t.Logf("Fetchr stdout: %s", f.stdout.String())
-	t.Logf("Fetchr stderr: %s", f.stderr.String())
+	t.Logf("Netkit stdout: %s", f.stdout.String())
+	t.Logf("Netkit stderr: %s", f.stderr.String())
 }
 
 // makeRequestThroughProxy makes an HTTP request through the proxy

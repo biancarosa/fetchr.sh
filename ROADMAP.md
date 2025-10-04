@@ -1,6 +1,6 @@
-# fetchr.sh Implementation Roadmap
+# netkit Implementation Roadmap
 
-This document outlines the implementation roadmap for fetchr.sh, breaking down the development into phases and milestones.
+This document outlines the implementation roadmap for netkit, breaking down the development into phases and milestones.
 
 ## Phase 1: Core Infrastructure (v0.1.0)
 

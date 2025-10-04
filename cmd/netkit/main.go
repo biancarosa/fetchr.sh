@@ -7,7 +7,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/biancarosa/fetchr.sh/internal/proxy"
+	"github.com/biancarosa/netkit/internal/proxy"
 )
 
 func main() {

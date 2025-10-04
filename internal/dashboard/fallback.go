@@ -20,7 +20,7 @@ func (h *fallbackHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	html := `<!DOCTYPE html>
 <html>
 <head>
-    <title>fetchr.sh Dashboard</title>
+    <title>netkit Dashboard</title>
     <style>
         body { 
             font-family: Arial, sans-serif; 
@@ -58,7 +58,7 @@ func (h *fallbackHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 </head>
 <body>
     <div class="container">
-        <h1>fetchr.sh Dashboard</h1>
+        <h1>netkit Dashboard</h1>
         <p class="error">Dashboard not embedded</p>
         <div class="note">
             <strong>Note:</strong> This build does not include the embedded dashboard.
@@ -67,12 +67,12 @@ func (h *fallbackHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
         
         <h3>Option 1: Build with embedded dashboard</h3>
         <pre>make build-dashboard
-go build -tags embed_dashboard -o fetchr ./cmd/fetchr</pre>
+go build -tags embed_dashboard -o netkit ./cmd/netkit</pre>
 
         <h3>Option 2: Serve separately</h3>
         <pre>cd dashboard && npm install --legacy-peer-deps
 npm run build
-cd .. && ./fetchr serve --dashboard --dashboard-dir dashboard/out</pre>
+cd .. && ./netkit serve --dashboard --dashboard-dir dashboard/out</pre>
 
         <h3>Option 3: Development mode</h3>
         <pre>make dev</pre>

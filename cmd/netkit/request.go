@@ -10,8 +10,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/biancarosa/fetchr.sh/internal/api"
-	"github.com/biancarosa/fetchr.sh/internal/proxy"
+	"github.com/biancarosa/netkit/internal/api"
+	"github.com/biancarosa/netkit/internal/proxy"
 )
 
 func runRequest() error {
@@ -59,7 +59,7 @@ func runRequest() error {
 	}
 
 	// Add default headers
-	reqConfig.Headers["User-Agent"] = "fetchr.sh/1.0"
+	reqConfig.Headers["User-Agent"] = "netkit/1.0"
 
 	// Make the request
 	resp, err := api.MakeRequest(proxyURL, reqConfig)

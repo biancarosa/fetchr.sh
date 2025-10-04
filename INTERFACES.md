@@ -1,15 +1,15 @@
-# fetchr.sh Interfaces
+# netkit Interfaces
 
-This document outlines the interfaces and commands for the fetchr.sh CLI tool.
+This document outlines the interfaces and commands for the netkit CLI tool.
 
 ## Core Commands
 
-### `fetchr serve`
+### `netkit serve`
 
-Starts the fetchr.sh proxy server with optional admin endpoints and dashboard.
+Starts the netkit proxy server with optional admin endpoints and dashboard.
 
 ```bash
-fetchr serve [flags]
+netkit serve [flags]
 ```
 
 **Flags:**
@@ -28,12 +28,12 @@ fetchr serve [flags]
 - `GET /requests/stats` - Request statistics and analytics
 - `POST /requests/clear` - Clear request history
 
-### `fetchr request`
+### `netkit request`
 
 Makes a request through the proxy server.
 
 ```bash
-fetchr request [flags]
+netkit request [flags]
 ```
 
 **Flags:**
@@ -48,13 +48,13 @@ fetchr request [flags]
 
 ```bash
 # Basic proxy server
-fetchr serve --port 8080
+netkit serve --port 8080
 
 # Proxy with admin endpoints and request history
-fetchr serve --admin-port 8081 --history-size 1000
+netkit serve --admin-port 8081 --history-size 1000
 
 # Full setup with dashboard
-fetchr serve \
+netkit serve \
   --port 8080 \
   --admin-port 8081 \
   --dashboard \
@@ -67,10 +67,10 @@ fetchr serve \
 
 ```bash
 # Simple GET request
-fetchr request --url https://api.example.com/users
+netkit request --url https://api.example.com/users
 
 # POST request through specific proxy port
-fetchr request \
+netkit request \
   --url https://api.example.com/users \
   --method POST \
   --port 8080 \
@@ -190,12 +190,12 @@ The current implementation provides core proxy functionality with request tracki
 
 These are potential commands and interfaces that could be implemented in future versions:
 
-### `fetchr replay`
+### `netkit replay`
 
 Replays captured requests.
 
 ```bash
-fetchr replay [flags]
+netkit replay [flags]
 ```
 
 **Flags:**
@@ -207,12 +207,12 @@ fetchr replay [flags]
 - `--modify`: Modify requests before replay
 - `--output`: Output directory for replay results
 
-### `fetchr capture`
+### `netkit capture`
 
 Captures requests for later replay.
 
 ```bash
-fetchr capture [flags]
+netkit capture [flags]
 ```
 
 **Flags:**
@@ -222,12 +222,12 @@ fetchr capture [flags]
 - `--max-size`: Maximum size of capture data
 - `--compress`: Compress captured data
 
-### `fetchr stats`
+### `netkit stats`
 
 Shows statistics and metrics.
 
 ```bash
-fetchr stats [flags]
+netkit stats [flags]
 ```
 
 **Flags:**
@@ -237,12 +237,12 @@ fetchr stats [flags]
 - `--metrics`: Show detailed metrics
 - `--export`: Export stats to file
 
-### `fetchr config`
+### `netkit config`
 
 Manages configuration.
 
 ```bash
-fetchr config [flags] <command>
+netkit config [flags] <command>
 ```
 
 **Commands:**
@@ -251,12 +251,12 @@ fetchr config [flags] <command>
 - `validate`: Validate configuration
 - `reset`: Reset to default configuration
 
-### `fetchr cache`
+### `netkit cache`
 
 Manages the cache.
 
 ```bash
-fetchr cache [flags] <command>
+netkit cache [flags] <command>
 ```
 
 **Commands:**
@@ -268,10 +268,10 @@ fetchr cache [flags] <command>
 
 ### Enhanced Request Command
 
-Future enhancements to the `fetchr request` command:
+Future enhancements to the `netkit request` command:
 
 ```bash
-fetchr request [flags]
+netkit request [flags]
 ```
 
 **Additional Flags (Future):**
@@ -301,13 +301,13 @@ These flags could be available for all commands:
 
 ```bash
 # Capture requests
-fetchr capture \
+netkit capture \
   --output ./captures \
   --filter "method=POST" \
   --time-range "2024-03-20T00:00:00Z/2024-03-21T00:00:00Z"
 
 # Replay captured requests
-fetchr replay \
+netkit replay \
   --from ./captures \
   --target https://api.example.com \
   --concurrent 5 \
@@ -318,7 +318,7 @@ fetchr replay \
 
 ```bash
 # POST request with body and headers
-fetchr request \
+netkit request \
   --url https://api.example.com/users \
   --method POST \
   --headers "Content-Type=application/json" \
@@ -326,12 +326,12 @@ fetchr request \
   --body '{"name": "John Doe"}'
 
 # Request from template
-fetchr request \
+netkit request \
   --template user-creation \
   --variables "name=John,email=john@example.com"
 
 # Asynchronous request
-fetchr request \
+netkit request \
   --url https://api.example.com/process \
   --method POST \
   --async \
@@ -342,11 +342,11 @@ fetchr request \
 
 ```bash
 # Clear cache for specific target
-fetchr cache clear --target https://api.example.com
+netkit cache clear --target https://api.example.com
 
 # Show cache statistics
-fetchr cache stats --format json
+netkit cache stats --format json
 
 # Export cache contents
-fetchr cache export --output cache-backup.json
+netkit cache export --output cache-backup.json
 ``` 

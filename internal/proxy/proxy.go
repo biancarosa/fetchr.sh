@@ -14,7 +14,7 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/biancarosa/fetchr.sh/internal/dashboard"
+	"github.com/biancarosa/netkit/internal/dashboard"
 )
 
 // Config holds the proxy configuration
@@ -123,7 +123,7 @@ func (p *Proxy) handleHTTP(w http.ResponseWriter, r *http.Request) {
 	// Always add CORS headers to allow any web application to use the proxy
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS")
-	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-Fetchr-Destination, Authorization, Accept, Origin, X-Requested-With, Cache-Control, Pragma, Expires")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-Netkit-Destination, Authorization, Accept, Origin, X-Requested-With, Cache-Control, Pragma, Expires")
 	w.Header().Set("Access-Control-Expose-Headers", "*")
 
 	// Handle preflight requests
@@ -154,18 +154,18 @@ func (p *Proxy) handleHTTP(w http.ResponseWriter, r *http.Request) {
 		Success:        false, // Will be updated based on outcome
 	}
 
-	// Check for X-Fetchr-Destination header (for dashboard requests)
+	// Check for X-Netkit-Destination header (for dashboard requests)
 	var targetURL *url.URL
 	var err error
 
-	if destinationHeader := r.Header.Get("X-Fetchr-Destination"); destinationHeader != "" {
+	if destinationHeader := r.Header.Get("X-Netkit-Destination"); destinationHeader != "" {
 		// Dashboard request - use the destination header as the target URL
 		targetURL, err = url.Parse(destinationHeader)
 		if err != nil {
-			record.Error = "Invalid X-Fetchr-Destination URL"
+			record.Error = "Invalid X-Netkit-Destination URL"
 			record.ProxyEndTime = time.Now()
 			p.history.AddRecord(record)
-			http.Error(w, "Invalid X-Fetchr-Destination URL", http.StatusBadRequest)
+			http.Error(w, "Invalid X-Netkit-Destination URL", http.StatusBadRequest)
 			return
 		}
 		// Update the record URL to reflect the actual destination
@@ -194,8 +194,8 @@ func (p *Proxy) handleHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// Copy headers from original request
 	for key, values := range r.Header {
-		// Skip the X-Fetchr-Destination header - it's only for internal proxy routing
-		if key == "X-Fetchr-Destination" {
+		// Skip the X-Netkit-Destination header - it's only for internal proxy routing
+		if key == "X-Netkit-Destination" {
 			continue
 		}
 		for _, value := range values {
@@ -342,7 +342,7 @@ func (p *Proxy) handleHealth(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	if _, err := w.Write([]byte(`{"status":"healthy","proxy":"fetchr.sh"}`)); err != nil {
+	if _, err := w.Write([]byte(`{"status":"healthy","proxy":"netkit"}`)); err != nil {
 		log.Printf("Error writing health response: %v", err)
 	}
 }
@@ -363,13 +363,13 @@ func (p *Proxy) handleMetrics(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain")
 	w.WriteHeader(http.StatusOK)
 	// Simple metrics for now - can be expanded later
-	metrics := `# HELP fetchr_requests_total Total number of requests handled
-# TYPE fetchr_requests_total counter
-fetchr_requests_total 0
+	metrics := `# HELP netkit_requests_total Total number of requests handled
+# TYPE netkit_requests_total counter
+netkit_requests_total 0
 
-# HELP fetchr_proxy_status Status of the proxy server
-# TYPE fetchr_proxy_status gauge
-fetchr_proxy_status 1
+# HELP netkit_proxy_status Status of the proxy server
+# TYPE netkit_proxy_status gauge
+netkit_proxy_status 1
 `
 	if _, err := w.Write([]byte(metrics)); err != nil {
 		log.Printf("Error writing metrics response: %v", err)

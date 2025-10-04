@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "fetchr.sh - HTTP Requests Helper",
+  title: "netkit - HTTP Requests Helper",
   description: "A powerful HTTP proxy and request capture tool with a modern web dashboard",
   icons: {
     icon: "/favicon.ico",

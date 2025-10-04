@@ -4,7 +4,7 @@
 .PHONY: commit-docs commit-style commit-test commit-chore commit-breaking check-conventional-commits
 
 # Build variables
-BINARY_NAME=fetchr
+BINARY_NAME=netkit
 GO=go
 VERSION := $(shell git describe --tags --always --dirty)
 GOLANGCI_LINT_VERSION=v2.1.6
@@ -181,7 +181,7 @@ install-dashboard:
 
 # Build the Go application
 build:
-	$(GO) build -o $(BINARY_NAME) ./cmd/fetchr
+	$(GO) build -o $(BINARY_NAME) ./cmd/netkit
 
 # Build with embedded dashboard
 build-embedded: build-dashboard
@@ -189,7 +189,7 @@ build-embedded: build-dashboard
 	@mkdir -p internal/dashboard/out
 	@cp -r $(DASHBOARD_DIR)/out/* internal/dashboard/out/
 	@echo "Building Go application with embedded dashboard..."
-	$(GO) build -tags embed_dashboard -o $(BINARY_NAME) ./cmd/fetchr
+	$(GO) build -tags embed_dashboard -o $(BINARY_NAME) ./cmd/netkit
 	@echo "✅ Embedded build completed successfully!"
 
 # Build the dashboard for production
@@ -238,7 +238,7 @@ lint-dashboard:
 
 # Start both backend and dashboard in development mode
 dev: deps
-	@echo "Starting fetchr.sh in development mode..."
+	@echo "Starting netkit in development mode..."
 	@echo "Backend will be available at http://localhost:8080"
 	@echo "Dashboard will be available at http://localhost:3000"
 	@echo ""
@@ -250,7 +250,7 @@ dev: deps
 
 # Start development environment after running all checks
 dev-safe: check
-	@echo "All checks passed! Starting fetchr.sh in development mode..."
+	@echo "All checks passed! Starting netkit in development mode..."
 	@echo "Backend will be available at http://localhost:8080"
 	@echo "Dashboard will be available at http://localhost:3000"
 	@echo ""
@@ -263,7 +263,7 @@ dev-safe: check
 # Start only the backend in development mode
 serve-dev:
 	@echo "Starting backend in development mode on port 8080..."
-	@$(GO) run ./cmd/fetchr serve --port 8080 --log-level debug --admin-port 8081
+	@$(GO) run ./cmd/netkit serve --port 8080 --log-level debug --admin-port 8081
 
 # Start only the dashboard in development mode
 dashboard-dev:

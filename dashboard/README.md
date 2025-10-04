@@ -1,6 +1,6 @@
-# fetchr.sh Dashboard
+# netkit Dashboard
 
-A modern, sleek web dashboard for the fetchr.sh HTTP proxy tool. Built with Next.js, TypeScript, and Tailwind CSS.
+A modern, sleek web dashboard for the netkit HTTP proxy tool. Built with Next.js, TypeScript, and Tailwind CSS.
 
 ## Features
 
@@ -32,7 +32,7 @@ A modern, sleek web dashboard for the fetchr.sh HTTP proxy tool. Built with Next
 - **Timing Details**: View detailed proxy overhead and upstream latency metrics with microsecond precision
 - **Fresh Data**: All history requests include cache-busting to ensure up-to-date information
 
-**Note**: Only requests that pass through the fetchr.sh proxy server are tracked in the history. Requests made directly from the dashboard are not stored in the history.
+**Note**: Only requests that pass through the netkit proxy server are tracked in the history. Requests made directly from the dashboard are not stored in the history.
 
 ### 📈 Request Statistics
 - **Real-time Metrics**: Live statistics for proxy requests with comprehensive data
@@ -60,7 +60,7 @@ A modern, sleek web dashboard for the fetchr.sh HTTP proxy tool. Built with Next
 ### Prerequisites
 - Node.js 18+ 
 - npm or yarn
-- fetchr.sh proxy server running (optional for testing)
+- netkit proxy server running (optional for testing)
 
 ### Installation
 
@@ -110,7 +110,7 @@ npm start
 - **External Links**: Click the external link icon to open URLs in new tabs
 - **Timing Details**: View detailed proxy overhead and upstream latency metrics with microsecond precision
 
-**Note**: Only requests that pass through the fetchr.sh proxy server are tracked in the history. Requests made directly from the dashboard are not stored in the history.
+**Note**: Only requests that pass through the netkit proxy server are tracked in the history. Requests made directly from the dashboard are not stored in the history.
 
 ### Proxy Status
 
@@ -133,11 +133,11 @@ NEXT_PUBLIC_ADMIN_PORT=8081
 
 ### Proxy Setup
 
-The dashboard is designed to work with the fetchr.sh proxy server. To use it:
+The dashboard is designed to work with the netkit proxy server. To use it:
 
-1. Start the fetchr.sh proxy server with admin port enabled:
+1. Start the netkit proxy server with admin port enabled:
    ```bash
-   fetchr serve --port 8080 --admin-port 8081
+   netkit serve --port 8080 --admin-port 8081
    ```
 
 2. The dashboard will automatically detect the proxy status
@@ -226,7 +226,7 @@ dashboard/
 
 ### Backend API Endpoints (Future)
 
-When the fetchr.sh backend supports it, the dashboard will integrate with:
+When the netkit backend supports it, the dashboard will integrate with:
 
 - `GET /api/requests` - Fetch request history
 - `POST /api/requests` - Make requests through proxy

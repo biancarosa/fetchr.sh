@@ -1,4 +1,4 @@
-# fetchr.sh
+# netkit
 
 A modern HTTP proxy and request capture tool with a sleek web dashboard.
 
@@ -74,7 +74,7 @@ Real-time statistics showing:
 ### Command Line Flags
 
 ```bash
-./fetchr serve [flags]
+./netkit serve [flags]
 
 Flags:
   --port int              Proxy server port (default 8080)
@@ -201,8 +201,8 @@ For detailed information, see [docs/CHANGELOG_GUIDE.md](docs/CHANGELOG_GUIDE.md)
 ### Project Structure
 
 ```
-fetchr.sh/
-├── cmd/fetchr/          # Main application entry point
+netkit/
+├── cmd/netkit/          # Main application entry point
 ├── internal/
 │   ├── proxy/           # Proxy server implementation
 │   └── api/             # Admin API handlers

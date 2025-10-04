@@ -1,4 +1,4 @@
-module github.com/biancarosa/fetchr.sh
+module github.com/biancarosa/netkit
 
 go 1.24.1
 
