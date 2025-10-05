@@ -34,7 +34,7 @@ func main() {
 func runServe() {
 	// Parse command line flags
 	port := flag.Int("port", 8080, "Port to listen on")
-	adminPort := flag.Int("admin-port", 0, "Admin port for health checks and metrics (0 to disable)")
+	adminPort := flag.Int("admin-port", 8081, "Admin port for health checks and metrics (0 to disable)")
 	historySize := flag.Int("history-size", 1000, "Maximum number of requests to keep in history")
 	dashboard := flag.Bool("dashboard", true, "Enable web dashboard")
 	dashboardPort := flag.Int("dashboard-port", 3000, "Dashboard port")

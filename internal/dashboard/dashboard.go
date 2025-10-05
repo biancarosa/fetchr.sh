@@ -45,15 +45,43 @@ func (h *dashboardHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		// For SPA routing, serve index.html for non-existent files
 		// unless the request is for an asset (has file extension)
 		if !strings.Contains(filePath, ".") {
-			filePath = "index.html"
-			file, err = h.fs.Open(filePath)
+			// First try appending /index.html for Next.js static export pages
+			indexPath := filePath + "/index.html"
+			file, err = h.fs.Open(indexPath)
 			if err != nil {
-				http.NotFound(w, r)
-				return
+				// Fall back to root index.html for client-side routing
+				filePath = "index.html"
+				file, err = h.fs.Open(filePath)
+				if err != nil {
+					http.NotFound(w, r)
+					return
+				}
+			} else {
+				filePath = indexPath
 			}
 		} else {
 			http.NotFound(w, r)
 			return
+		}
+	} else {
+		// Check if it's a directory
+		fileInfo, err := file.Stat()
+		if err == nil && fileInfo.IsDir() {
+			file.Close()
+			// Try to serve index.html from the directory
+			indexPath := filePath + "/index.html"
+			file, err = h.fs.Open(indexPath)
+			if err != nil {
+				// Fall back to root index.html for client-side routing
+				filePath = "index.html"
+				file, err = h.fs.Open(filePath)
+				if err != nil {
+					http.NotFound(w, r)
+					return
+				}
+			} else {
+				filePath = indexPath
+			}
 		}
 	}
 	defer file.Close()
