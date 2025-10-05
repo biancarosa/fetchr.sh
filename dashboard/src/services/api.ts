@@ -99,8 +99,8 @@ class ApiService {
         }
       }
 
-      // Add the special X-Fetchr-Destination header to tell the proxy where to forward the request
-      headers.set('X-Fetchr-Destination', config.url);
+      // Add the special X-Netkit-Destination header to tell the proxy where to forward the request
+      headers.set('X-Netkit-Destination', config.url);
 
       const fetchOptions: RequestInit = {
         method: config.method,
