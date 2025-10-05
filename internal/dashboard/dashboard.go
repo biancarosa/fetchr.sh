@@ -8,6 +8,7 @@ import (
 	"io/fs"
 	"net/http"
 	"path"
+	"strconv"
 	"strings"
 )
 
@@ -73,7 +74,7 @@ func (h *dashboardHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Serve the content
-	w.Header().Set("Content-Length", string(rune(len(content))))
+	w.Header().Set("Content-Length", strconv.Itoa(len(content)))
 	w.WriteHeader(http.StatusOK)
 	w.Write(content)
 }
