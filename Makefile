@@ -1,7 +1,7 @@
 .PHONY: build test lint clean coverage release version install check ci help all dev commit-feat commit-fix commit-refactor commit-perf commit-security
 .PHONY: build-dashboard test-dashboard lint-dashboard clean-dashboard install-dashboard install-backend dashboard-dev serve-dev build-all clean-all
 .PHONY: changelog changelog-update changelog-init install-changelog-tools release-patch release-minor release-major release-prerelease release-prerelease-next
-.PHONY: commit-docs commit-style commit-test commit-chore commit-breaking check-conventional-commits
+.PHONY: commit-docs commit-style commit-test commit-chore commit-breaking check-conventional-commits test-e2e test-e2e-ui test-e2e-headed
 
 # Build variables
 BINARY_NAME=netkit
@@ -36,7 +36,10 @@ help:
 	@echo "Test commands:"
 	@echo "  test                   - Run Go unit tests with coverage"
 	@echo "  test-dashboard         - Run dashboard tests"
-	@echo "  e2e                    - Run end-to-end tests"
+	@echo "  e2e                    - Run Go end-to-end tests"
+	@echo "  test-e2e               - Run Playwright E2E tests (headless)"
+	@echo "  test-e2e-ui            - Run Playwright E2E tests with UI mode (interactive)"
+	@echo "  test-e2e-headed        - Run Playwright E2E tests in headed mode (watch browser)"
 	@echo ""
 	@echo "Lint commands:"
 	@echo "  lint                   - Run golangci-lint for Go code"
@@ -220,6 +223,33 @@ test-dashboard:
 		exit 1; \
 	fi
 	@cd $(DASHBOARD_DIR) && npm run test --legacy-peer-deps
+
+# Run Playwright E2E tests (headless)
+test-e2e:
+	@if [ ! -d "$(DASHBOARD_DIR)" ]; then \
+		echo "❌ Error: Dashboard directory '$(DASHBOARD_DIR)' not found"; \
+		exit 1; \
+	fi
+	@echo "🎭 Running Playwright E2E tests..."
+	@cd $(DASHBOARD_DIR) && npm run test:e2e
+
+# Run Playwright E2E tests with UI mode (interactive)
+test-e2e-ui:
+	@if [ ! -d "$(DASHBOARD_DIR)" ]; then \
+		echo "❌ Error: Dashboard directory '$(DASHBOARD_DIR)' not found"; \
+		exit 1; \
+	fi
+	@echo "🎭 Running Playwright E2E tests in UI mode..."
+	@cd $(DASHBOARD_DIR) && npm run test:e2e:ui
+
+# Run Playwright E2E tests in headed mode (watch browser)
+test-e2e-headed:
+	@if [ ! -d "$(DASHBOARD_DIR)" ]; then \
+		echo "❌ Error: Dashboard directory '$(DASHBOARD_DIR)' not found"; \
+		exit 1; \
+	fi
+	@echo "🎭 Running Playwright E2E tests in headed mode..."
+	@cd $(DASHBOARD_DIR) && npm run test:e2e:headed
 
 # Run end-to-end tests
 e2e:
