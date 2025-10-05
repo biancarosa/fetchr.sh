@@ -507,6 +507,50 @@ func TestGracefulShutdown(t *testing.T) {
 	assert.Contains(t, proxySrv.stderr.String(), "Shutting down", "Proxy should indicate graceful shutdown")
 }
 
+// TestDefaultConfiguration tests that the proxy works with default configuration (no flags)
+func TestDefaultConfiguration(t *testing.T) {
+	// Start with minimal flags - testing that admin port defaults to 8081
+	// We still need to override proxy port to avoid conflicts with other tests
+	// and disable dashboard to avoid port 3000 conflicts
+	proxySrv := startProxyServer(t, "--admin-port", "8091", "--dashboard=false")
+	defer proxySrv.stop(t)
+
+	testSrv := setupTestServer(t)
+	defer testSrv.shutdown(t)
+
+	// Make a request through the proxy
+	targetURL := fmt.Sprintf("%s/hello", testServerAddr)
+	resp, body := makeRequestThroughProxy(t, "GET", targetURL, nil, "")
+
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	assert.Contains(t, string(body), "Hello, World!")
+
+	// Test that admin API is available on the configured port (8091)
+	client := &http.Client{Timeout: timeoutDuration}
+
+	// Health check should work
+	healthResp, err := client.Get("http://localhost:8091/healthz")
+	require.NoError(t, err, "Failed to make health check request on admin port")
+	defer healthResp.Body.Close()
+
+	assert.Equal(t, http.StatusOK, healthResp.StatusCode, "Health check should succeed on admin port")
+
+	// Request history should work
+	historyResp, err := client.Get("http://localhost:8091/requests")
+	require.NoError(t, err, "Failed to get request history on admin port")
+	defer historyResp.Body.Close()
+
+	assert.Equal(t, http.StatusOK, historyResp.StatusCode, "Request history should be accessible on admin port")
+
+	var historyData map[string]interface{}
+	err = json.NewDecoder(historyResp.Body).Decode(&historyData)
+	require.NoError(t, err, "Failed to decode history response")
+
+	records, ok := historyData["records"].([]interface{})
+	require.True(t, ok, "Records should be an array")
+	assert.GreaterOrEqual(t, len(records), 1, "Should have at least 1 request in history")
+}
+
 // TestRequestHistoryEndpoints tests the request history functionality
 func TestRequestHistoryEndpoints(t *testing.T) {
 	proxySrv := startProxyServer(t, "--admin-port", "9996", "--history-size", "10")
