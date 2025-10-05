@@ -22,8 +22,8 @@ RUN go mod download
 # Copy source code
 COPY . .
 
-# Copy built dashboard from previous stage
-COPY --from=dashboard-builder /dashboard/out ./dashboard/out
+# Copy built dashboard from previous stage to the location expected by embed directive
+COPY --from=dashboard-builder /dashboard/out ./internal/dashboard/out
 
 # Build the binary with embedded dashboard
 RUN CGO_ENABLED=0 GOOS=linux go build -tags embed_dashboard -o netkit ./cmd/netkit
