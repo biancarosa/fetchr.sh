@@ -5,6 +5,7 @@
 
 # Build variables
 BINARY_NAME=netkit
+BIN_DIR=bin
 GO=go
 VERSION := $(shell git describe --tags --always --dirty)
 GOLANGCI_LINT_VERSION=v2.1.6
@@ -185,7 +186,8 @@ install-dashboard:
 
 # Build the Go application
 build:
-	$(GO) build -o $(BINARY_NAME) ./cmd/netkit
+	@mkdir -p $(BIN_DIR)
+	$(GO) build -o $(BIN_DIR)/$(BINARY_NAME) ./cmd/netkit
 
 # Build with embedded dashboard
 build-embedded: build-dashboard
@@ -193,7 +195,8 @@ build-embedded: build-dashboard
 	@mkdir -p internal/dashboard/out
 	@cp -r $(DASHBOARD_DIR)/out/* internal/dashboard/out/
 	@echo "Building Go application with embedded dashboard..."
-	$(GO) build -tags embed_dashboard -o $(BINARY_NAME) ./cmd/netkit
+	@mkdir -p $(BIN_DIR)
+	$(GO) build -tags embed_dashboard -o $(BIN_DIR)/$(BINARY_NAME) ./cmd/netkit
 	@echo "✅ Embedded build completed successfully!"
 
 # Build the dashboard for production
@@ -311,7 +314,7 @@ coverage:
 
 # Clean Go build artifacts
 clean:
-	rm -f $(BINARY_NAME) coverage.txt coverage-e2e.txt
+	rm -rf $(BIN_DIR) coverage.txt coverage-e2e.txt
 	$(GO) clean
 
 # Clean dashboard build artifacts

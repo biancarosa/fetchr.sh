@@ -74,7 +74,7 @@ Real-time statistics showing:
 ### Command Line Flags
 
 ```bash
-./netkit serve [flags]
+./bin/netkit serve [flags]
 
 Flags:
   --port int              Proxy server port (default 8080)

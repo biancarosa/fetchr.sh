@@ -2,7 +2,7 @@ coverage.txt
 coverage-e2e.txt
 dashboard/test-results
 dashboard/playwrite-report
-netkit
+bin/
 
 # Embedded dashboard files (generated during build)
 internal/dashboard/out/
